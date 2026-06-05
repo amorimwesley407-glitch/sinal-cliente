@@ -310,10 +310,20 @@ a {
   color: var(--muted);
 }
 
+.status-sem-dados {
+  background: rgba(100, 115, 134, .14);
+  color: var(--muted);
+}
+
 .status-ativo,
 .status-online {
   background: rgba(31, 143, 77, .13);
   color: var(--green);
+}
+
+.status-offline {
+  background: rgba(201, 42, 42, .12);
+  color: var(--red);
 }
 
 .status-inativo,

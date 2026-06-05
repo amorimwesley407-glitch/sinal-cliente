@@ -83,7 +83,7 @@
 <section class="panel mt-3">
   <div class="panel-header">
     <h2>Eventos e coletas</h2>
-    <span>PON {{ cliente["pon"] or "-" }} / {{ cliente["caixa"] or "-" }}</span>
+    <span>últimos 7 dias / PON {{ cliente["pon"] or "-" }} / {{ cliente["caixa"] or "-" }}</span>
   </div>
   {% set clientes = coletas %}
   {% include "_tabela_clientes.html" %}

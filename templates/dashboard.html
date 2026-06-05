@@ -46,7 +46,7 @@
 <section class="panel mt-3">
   <div class="panel-header">
     <h2>Fila operacional</h2>
-    <span>{{ stats.total }} clientes monitorados</span>
+    <span>{{ clientes|length }} clientes offline nas últimas 24 horas</span>
   </div>
   {% include "_tabela_clientes.html" %}
 </section>

@@ -154,20 +154,122 @@ def listar_ultima_coleta(where: str = "", params: tuple = ()) -> list[sqlite3.Ro
         return conn.execute(query, params).fetchall()
 
 
-def obter_historico_cliente(cliente_id: str, limite: int = 50, dias: int | None = None) -> list[sqlite3.Row]:
+def listar_offline_24h(limite: int = 30) -> list[dict]:
+    inicio = (datetime.now() - timedelta(hours=24)).isoformat(timespec="seconds")
+    offline = ("offline", "off-line", "down", "desconectada", "desconectado", "sem sinal")
+    placeholders = ", ".join("?" for _ in offline)
+    query = f"""
+        WITH ultimos AS (
+            SELECT *, ROW_NUMBER() OVER (
+                PARTITION BY COALESCE(NULLIF(login, ''), NULLIF(cliente_id, ''), nome)
+                ORDER BY data_hora DESC, id DESC
+            ) AS rn
+            FROM historico_sinal
+            WHERE cliente_id IS NOT NULL
+              AND cliente_id != ''
+              AND data_hora >= ?
+        )
+        SELECT * FROM ultimos
+        WHERE rn = 1
+          AND LOWER(TRIM(COALESCE(status_onu, ''))) IN ({placeholders})
+        ORDER BY data_hora DESC, score ASC, rx ASC
+        LIMIT ?
+    """
+    with get_connection() as conn:
+        rows = [dict(row) for row in conn.execute(query, (inicio, *offline, limite)).fetchall()]
+        sinais_validos = _ultimos_sinais_validos(conn, rows)
+        for row in rows:
+            if _sinal_valido(row.get("rx")) and _sinal_valido(row.get("tx")):
+                continue
+            valido = sinais_validos.get(_chave_sinal(row))
+            if not valido:
+                if not _sinal_valido(row.get("rx")):
+                    row["rx"] = None
+                if not _sinal_valido(row.get("tx")):
+                    row["tx"] = None
+                row["categoria"] = "SEM DADOS"
+                continue
+            if not _sinal_valido(row.get("rx")):
+                row["rx"] = valido["rx"]
+            if not _sinal_valido(row.get("tx")):
+                row["tx"] = valido["tx"]
+            row["categoria"] = valido["categoria"] or row["categoria"]
+            row["score"] = valido["score"] if valido["score"] is not None else row["score"]
+        return rows
+
+
+def _sinal_valido(valor) -> bool:
+    return valor not in (None, 0, 0.0)
+
+
+def _chave_sinal(row: dict) -> str:
+    return str(row.get("login") or row.get("cliente_id") or "")
+
+
+def _ultimos_sinais_validos(conn: sqlite3.Connection, rows: list[dict]) -> dict[str, sqlite3.Row]:
+    chaves = sorted({_chave_sinal(row) for row in rows if _chave_sinal(row)})
+    if not chaves:
+        return {}
+    placeholders = ", ".join("?" for _ in chaves)
+    query = f"""
+        WITH validos AS (
+            SELECT
+                COALESCE(NULLIF(login, ''), NULLIF(cliente_id, '')) AS chave,
+                rx,
+                tx,
+                categoria,
+                score,
+                ROW_NUMBER() OVER (
+                    PARTITION BY COALESCE(NULLIF(login, ''), NULLIF(cliente_id, ''))
+                    ORDER BY data_hora DESC, id DESC
+                ) AS rn
+            FROM historico_sinal
+            WHERE COALESCE(NULLIF(login, ''), NULLIF(cliente_id, '')) IN ({placeholders})
+              AND (
+                (rx IS NOT NULL AND rx != 0)
+                OR (tx IS NOT NULL AND tx != 0)
+              )
+        )
+        SELECT chave, rx, tx, categoria, score
+        FROM validos
+        WHERE rn = 1
+    """
+    return {
+        row["chave"]: row
+        for row in conn.execute(query, tuple(chaves)).fetchall()
+    }
+
+
+
+def obter_historico_cliente(cliente_id: str, limite: int | None = 50, dias: int | None = None) -> list[sqlite3.Row]:
     filtro_data = ""
-    params: list = [cliente_id]
+    params: list = [cliente_id, cliente_id]
     if dias:
         filtro_data = "AND data_hora >= ?"
         params.append((datetime.now() - timedelta(days=dias)).isoformat(timespec="seconds"))
-    params.append(limite)
+    filtro_limite = ""
+    if limite:
+        filtro_limite = "LIMIT ?"
+        params.append(limite)
     with get_connection() as conn:
         return conn.execute(
             f"""
             SELECT * FROM historico_sinal
-            WHERE cliente_id = ? {filtro_data}
-            ORDER BY data_hora DESC
-            LIMIT ?
+            WHERE (
+                cliente_id = ?
+                OR login = (
+                    SELECT login
+                    FROM historico_sinal
+                    WHERE cliente_id = ?
+                      AND login IS NOT NULL
+                      AND login != ''
+                    ORDER BY data_hora DESC, id DESC
+                    LIMIT 1
+                )
+            )
+            {filtro_data}
+            ORDER BY data_hora DESC, id DESC
+            {filtro_limite}
             """,
             tuple(params),
         ).fetchall()

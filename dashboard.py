@@ -11,6 +11,7 @@ from flask import Blueprint, Response, render_template, request, send_file
 from api_ixc import IXCClient
 from database import (
     listar_bons_excelentes,
+    listar_offline_24h,
     listar_ultima_coleta,
     obter_historico_cliente,
     serie_evolucao,
@@ -27,11 +28,11 @@ logger = logging.getLogger(__name__)
 @dashboard_bp.route("/dashboard")
 def dashboard():
     stats = estatisticas_dashboard()
-    clientes = listar_ultima_coleta()
+    clientes = listar_offline_24h()
     return render_template(
         "dashboard.html",
         stats=stats,
-        clientes=clientes[:30],
+        clientes=clientes,
         top_criticos=top_criticos(),
         evolucao=serie_evolucao(),
     )
@@ -43,6 +44,21 @@ def status_class(value) -> str:
     texto = texto.encode("ascii", "ignore").decode("ascii")
     texto = re.sub(r"[^a-z0-9]+", "-", texto).strip("-")
     return texto or "sem-status"
+
+
+def _cliente_online(value) -> bool:
+    texto = str(value or "").strip().lower()
+    return texto not in {"offline", "off-line", "down", "desconectada", "desconectado", "sem sinal"}
+
+
+@dashboard_bp.app_template_filter("online_label")
+def online_label(value) -> str:
+    return "Sim" if _cliente_online(value) else "Não"
+
+
+@dashboard_bp.app_template_filter("online_status")
+def online_status(value) -> str:
+    return "online" if _cliente_online(value) else "offline"
 
 
 @dashboard_bp.route("/clientes-criticos")
@@ -72,7 +88,7 @@ def clientes_excelentes():
 
 @dashboard_bp.route("/cliente/<cliente_id>")
 def detalhe_cliente(cliente_id: str):
-    coletas = obter_historico_cliente(cliente_id, 500, dias=7)
+    coletas = obter_historico_cliente(cliente_id, limite=None, dias=7)
     cliente_atual = coletas[0] if coletas else None
     historico_conexao = []
     if cliente_atual and cliente_atual["login"]:

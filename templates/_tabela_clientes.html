@@ -8,6 +8,7 @@
         <th>RX</th>
         <th>TX</th>
         <th>Categoria</th>
+        <th>Online</th>
         <th>Contrato</th>
         <th>Acesso</th>
         <th>Última coleta</th>
@@ -22,12 +23,13 @@
         <td class="mono">{{ "%.2f"|format(cliente["rx"]) if cliente["rx"] is not none else "-" }}</td>
         <td class="mono">{{ "%.2f"|format(cliente["tx"]) if cliente["tx"] is not none else "-" }}</td>
         <td><span class="badge status-{{ cliente['categoria']|status_class }}">{{ cliente["categoria"] }}</span></td>
+        <td><span class="badge status-{{ cliente['status_onu']|online_status }}">{{ cliente["status_onu"]|online_label }}</span></td>
         <td><span class="badge status-{{ cliente['status_contrato']|status_class }}">{{ cliente["status_contrato"] or "-" }}</span></td>
         <td><span class="badge status-{{ cliente['status_acesso']|status_class }}">{{ cliente["status_acesso"] or "-" }}</span></td>
         <td class="mono">{{ cliente["data_hora"] }}</td>
       </tr>
       {% else %}
-      <tr><td colspan="9" class="text-center text-muted py-4">Nenhum registro encontrado.</td></tr>
+      <tr><td colspan="10" class="text-center text-muted py-4">Nenhum registro encontrado.</td></tr>
       {% endfor %}
     </tbody>
   </table>
