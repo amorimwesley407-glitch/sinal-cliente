@@ -174,14 +174,24 @@ def contato_cliente(cliente: dict) -> str:
 
 
 def dados_conexao(radius: dict) -> dict:
+    agora = datetime.now()
+    online = str(primeiro_valor(radius, ["online"]) or "").strip().lower() in {"s", "sim", "online", "on", "1", "true"}
     tempo_segundos = inteiro(primeiro_valor(radius, ["tempo_conectado", "tempo_conexao"]))
     ultima_desconexao = str(primeiro_valor(radius, ["ultima_conexao_final"]) or "")
     ultima_conexao = str(primeiro_valor(radius, ["ultima_conexao_inicial"]) or "")
+
+    if online and (tempo_segundos is None or tempo_segundos <= 0):
+        inicio = parse_ixc_datetime(ultima_conexao)
+        if inicio:
+            tempo_segundos = int((agora - inicio).total_seconds())
+
+    tempo_ligado = formatar_duracao(tempo_segundos) if online or (tempo_segundos and tempo_segundos > 0) else ""
+
     return {
-        "tempo_ligado": formatar_duracao(tempo_segundos),
+        "tempo_ligado": tempo_ligado,
         "tempo_ligado_segundos": tempo_segundos,
         "ultima_desconexao": ultima_desconexao,
-        "tempo_desconectado": calcular_tempo_desconectado(ultima_desconexao, ultima_conexao),
+        "tempo_desconectado": calcular_tempo_desconectado(ultima_desconexao, ultima_conexao, online=online, agora=agora),
         "motivo_desconexao": str(primeiro_valor(radius, ["motivo_desconexao"]) or ""),
     }
 
@@ -242,13 +252,41 @@ def formatar_duracao(segundos: int | None) -> str:
     return " ".join(partes[:3])
 
 
-def calcular_tempo_desconectado(inicio_queda: str, reconexao: str) -> str:
-    if not inicio_queda or not reconexao:
+def parse_ixc_datetime(valor: str) -> datetime | None:
+    if not valor:
+        return None
+    texto = str(valor).strip()
+    formatos = [
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S",
+        "%d/%m/%Y %H:%M:%S",
+    ]
+    for formato in formatos:
+        try:
+            return datetime.strptime(texto[:19], formato)
+        except ValueError:
+            continue
+    return None
+
+
+def calcular_tempo_desconectado(
+    inicio_queda: str,
+    reconexao: str,
+    online: bool = False,
+    agora: datetime | None = None,
+) -> str:
+    if not inicio_queda:
         return ""
-    try:
-        queda = datetime.strptime(inicio_queda, "%Y-%m-%d %H:%M:%S")
-        volta = datetime.strptime(reconexao, "%Y-%m-%d %H:%M:%S")
-    except ValueError:
+    queda = parse_ixc_datetime(inicio_queda)
+    if not queda:
+        return ""
+    volta = parse_ixc_datetime(reconexao)
+
+    if not online:
+        segundos = int(((agora or datetime.now()) - queda).total_seconds())
+        return formatar_duracao(segundos) if segundos >= 0 else ""
+
+    if not volta:
         return ""
     segundos = int((volta - queda).total_seconds())
     if segundos < 0:
