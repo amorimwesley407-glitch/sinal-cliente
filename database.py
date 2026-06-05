@@ -38,13 +38,33 @@ def init_db() -> None:
                 categoria TEXT NOT NULL,
                 instavel INTEGER NOT NULL DEFAULT 0,
                 oscilacao_24h REAL NOT NULL DEFAULT 0,
+                tempo_ligado TEXT,
+                tempo_ligado_segundos INTEGER,
+                pon TEXT,
+                caixa TEXT,
+                porta_caixa TEXT,
+                ultima_desconexao TEXT,
+                tempo_desconectado TEXT,
+                causa_ultima_queda TEXT,
                 data_hora TEXT NOT NULL
             )
             """
         )
         columns = {row["name"] for row in conn.execute("PRAGMA table_info(historico_sinal)").fetchall()}
-        if "contato" not in columns:
-            conn.execute("ALTER TABLE historico_sinal ADD COLUMN contato TEXT")
+        migrations = {
+            "contato": "ALTER TABLE historico_sinal ADD COLUMN contato TEXT",
+            "tempo_ligado": "ALTER TABLE historico_sinal ADD COLUMN tempo_ligado TEXT",
+            "tempo_ligado_segundos": "ALTER TABLE historico_sinal ADD COLUMN tempo_ligado_segundos INTEGER",
+            "pon": "ALTER TABLE historico_sinal ADD COLUMN pon TEXT",
+            "caixa": "ALTER TABLE historico_sinal ADD COLUMN caixa TEXT",
+            "porta_caixa": "ALTER TABLE historico_sinal ADD COLUMN porta_caixa TEXT",
+            "ultima_desconexao": "ALTER TABLE historico_sinal ADD COLUMN ultima_desconexao TEXT",
+            "tempo_desconectado": "ALTER TABLE historico_sinal ADD COLUMN tempo_desconectado TEXT",
+            "causa_ultima_queda": "ALTER TABLE historico_sinal ADD COLUMN causa_ultima_queda TEXT",
+        }
+        for column, sql in migrations.items():
+            if column not in columns:
+                conn.execute(sql)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_hist_cliente_data ON historico_sinal(cliente_id, data_hora)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_hist_status ON historico_sinal(status)")
 
@@ -55,8 +75,10 @@ def salvar_coleta(registro: dict) -> None:
             """
             INSERT INTO historico_sinal (
                 cliente_id, nome, contato, login, rx, tx, score, status, status_onu,
-                categoria, instavel, oscilacao_24h, data_hora
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                categoria, instavel, oscilacao_24h, tempo_ligado, tempo_ligado_segundos,
+                pon, caixa, porta_caixa, ultima_desconexao, tempo_desconectado,
+                causa_ultima_queda, data_hora
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 registro["cliente_id"],
@@ -71,6 +93,14 @@ def salvar_coleta(registro: dict) -> None:
                 registro["categoria"],
                 int(registro.get("instavel", False)),
                 registro.get("oscilacao_24h", 0),
+                registro.get("tempo_ligado", ""),
+                registro.get("tempo_ligado_segundos"),
+                registro.get("pon", ""),
+                registro.get("caixa", ""),
+                registro.get("porta_caixa", ""),
+                registro.get("ultima_desconexao", ""),
+                registro.get("tempo_desconectado", ""),
+                registro.get("causa_ultima_queda", ""),
                 registro["data_hora"],
             ),
         )

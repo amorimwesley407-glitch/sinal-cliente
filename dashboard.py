@@ -60,7 +60,13 @@ def clientes_excelentes():
 @dashboard_bp.route("/cliente/<cliente_id>")
 def detalhe_cliente(cliente_id: str):
     historico = obter_historico_cliente(cliente_id, 100)
-    return render_template("cliente.html", historico=historico, cliente_id=cliente_id)
+    cliente_atual = historico[0] if historico else None
+    return render_template(
+        "cliente.html",
+        historico=historico,
+        cliente=cliente_atual,
+        cliente_id=cliente_id,
+    )
 
 
 @dashboard_bp.route("/exportar/<formato>")

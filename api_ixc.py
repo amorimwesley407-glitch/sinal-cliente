@@ -112,6 +112,7 @@ class IXCClient:
             registro["contato"] = contato_cliente(cliente or {})
             registro["login"] = primeiro_valor(radius or {}, ["login", "usuario"]) or registro["login"]
             registro["status_onu"] = status_online(primeiro_valor(radius or {}, ["online"])) or registro["status_onu"]
+            registro.update(dados_conexao(radius or {}))
             coleta.append(registro)
         return coleta
 
@@ -125,6 +126,14 @@ class IXCClient:
             "rx": normalizar_float(primeiro_valor(fibra, ["sinal_rx", "rx", "potencia_rx", "onu_rx"])),
             "tx": normalizar_float(primeiro_valor(fibra, ["sinal_tx", "tx", "potencia_tx", "onu_tx"])),
             "status_onu": status_online(primeiro_valor(fibra, ["status_onu", "status", "online"])) or "DESCONHECIDO",
+            "pon": str(primeiro_valor(fibra, ["ponid", "pon", "ponno"]) or ""),
+            "caixa": str(primeiro_valor(fibra, ["id_caixa_ftth", "caixa", "caixa_ftth"]) or ""),
+            "porta_caixa": str(primeiro_valor(fibra, ["porta_ftth", "porta_caixa"]) or ""),
+            "causa_ultima_queda": str(primeiro_valor(fibra, ["causa_ultima_queda"]) or ""),
+            "tempo_ligado": "",
+            "tempo_ligado_segundos": None,
+            "ultima_desconexao": "",
+            "tempo_desconectado": "",
             "data_hora": datetime.now().isoformat(timespec="seconds"),
         }
 
@@ -145,6 +154,57 @@ def contato_cliente(cliente: dict) -> str:
         if valor and str(valor).strip() not in valores:
             valores.append(str(valor).strip())
     return " / ".join(valores)
+
+
+def dados_conexao(radius: dict) -> dict:
+    tempo_segundos = inteiro(primeiro_valor(radius, ["tempo_conectado", "tempo_conexao"]))
+    ultima_desconexao = str(primeiro_valor(radius, ["ultima_conexao_final"]) or "")
+    ultima_conexao = str(primeiro_valor(radius, ["ultima_conexao_inicial"]) or "")
+    return {
+        "tempo_ligado": formatar_duracao(tempo_segundos),
+        "tempo_ligado_segundos": tempo_segundos,
+        "ultima_desconexao": ultima_desconexao,
+        "tempo_desconectado": calcular_tempo_desconectado(ultima_desconexao, ultima_conexao),
+    }
+
+
+def inteiro(valor: Any) -> int | None:
+    if valor in (None, ""):
+        return None
+    try:
+        return int(float(str(valor).strip()))
+    except ValueError:
+        return None
+
+
+def formatar_duracao(segundos: int | None) -> str:
+    if segundos is None or segundos < 0:
+        return ""
+    dias, resto = divmod(segundos, 86400)
+    horas, resto = divmod(resto, 3600)
+    minutos, _ = divmod(resto, 60)
+    partes = []
+    if dias:
+        partes.append(f"{dias}d")
+    if horas:
+        partes.append(f"{horas}h")
+    if minutos or not partes:
+        partes.append(f"{minutos}min")
+    return " ".join(partes[:3])
+
+
+def calcular_tempo_desconectado(inicio_queda: str, reconexao: str) -> str:
+    if not inicio_queda or not reconexao:
+        return ""
+    try:
+        queda = datetime.strptime(inicio_queda, "%Y-%m-%d %H:%M:%S")
+        volta = datetime.strptime(reconexao, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return ""
+    segundos = int((volta - queda).total_seconds())
+    if segundos < 0:
+        return ""
+    return formatar_duracao(segundos)
 
 
 def status_online(valor: Any) -> str | None:
