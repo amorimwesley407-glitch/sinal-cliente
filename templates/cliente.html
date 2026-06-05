@@ -52,25 +52,25 @@
     <table class="table table-sm align-middle">
       <thead>
         <tr>
-          <th>Coleta</th>
-          <th>Status acesso</th>
-          <th>Status contrato</th>
+          <th>Início</th>
+          <th>Fim</th>
           <th>Tempo ligado</th>
-          <th>Última desconexão</th>
           <th>Tempo desconectado</th>
           <th>Motivo</th>
+          <th>IP</th>
+          <th>MAC</th>
         </tr>
       </thead>
       <tbody>
         {% for item in historico %}
         <tr>
-          <td class="mono">{{ item["data_hora"] }}</td>
-          <td><span class="badge status-{{ item['status_acesso']|status_class }}">{{ item["status_acesso"] or "-" }}</span></td>
-          <td><span class="badge status-{{ item['status_contrato']|status_class }}">{{ item["status_contrato"] or "-" }}</span></td>
+          <td class="mono">{{ item["inicio"] or "-" }}</td>
+          <td class="mono">{{ item["fim"] or "conectado" }}</td>
           <td class="mono">{{ item["tempo_ligado"] or "-" }}</td>
-          <td class="mono">{{ item["ultima_desconexao"] or "-" }}</td>
           <td class="mono">{{ item["tempo_desconectado"] or "-" }}</td>
-          <td>{{ item["motivo_desconexao"] or item["causa_ultima_queda"] or "-" }}</td>
+          <td>{{ item["motivo"] or "-" }}</td>
+          <td class="mono">{{ item["ip"] or "-" }}</td>
+          <td class="mono">{{ item["mac"] or "-" }}</td>
         </tr>
         {% else %}
         <tr><td colspan="7" class="text-center text-muted py-4">Nenhum histórico de conexão encontrado.</td></tr>
@@ -85,7 +85,7 @@
     <h2>Eventos e coletas</h2>
     <span>PON {{ cliente["pon"] or "-" }} / {{ cliente["caixa"] or "-" }}</span>
   </div>
-  {% set clientes = historico %}
+  {% set clientes = coletas %}
   {% include "_tabela_clientes.html" %}
 </section>
 {% else %}

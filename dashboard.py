@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import io
+import logging
 import re
 import unicodedata
 
 import pandas as pd
 from flask import Blueprint, Response, render_template, request, send_file
 
+from api_ixc import IXCClient
 from database import (
     listar_bons_excelentes,
     listar_ultima_coleta,
@@ -18,6 +20,7 @@ from database import (
 
 
 dashboard_bp = Blueprint("dashboard", __name__)
+logger = logging.getLogger(__name__)
 
 
 @dashboard_bp.route("/")
@@ -69,11 +72,18 @@ def clientes_excelentes():
 
 @dashboard_bp.route("/cliente/<cliente_id>")
 def detalhe_cliente(cliente_id: str):
-    historico = obter_historico_cliente(cliente_id, 500, dias=7)
-    cliente_atual = historico[0] if historico else None
+    coletas = obter_historico_cliente(cliente_id, 500, dias=7)
+    cliente_atual = coletas[0] if coletas else None
+    historico_conexao = []
+    if cliente_atual and cliente_atual["login"]:
+        try:
+            historico_conexao = IXCClient().buscar_historico_conexao(cliente_atual["login"], dias=7)
+        except Exception:
+            logger.exception("Falha ao buscar historico Radacct do cliente %s", cliente_id)
     return render_template(
         "cliente.html",
-        historico=historico,
+        historico=historico_conexao,
+        coletas=coletas,
         cliente=cliente_atual,
         cliente_id=cliente_id,
     )

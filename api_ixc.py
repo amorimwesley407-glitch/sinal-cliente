@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import os
 from base64 import b64encode
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 import requests
@@ -87,6 +87,25 @@ class IXCClient:
             return None
         rows = self.listar_todos("radusuarios", filtros, rp=1)
         return rows[0] if rows else None
+
+    def buscar_historico_conexao(self, login: str, dias: int = 7, limite: int = 100) -> list[dict]:
+        if not login:
+            return []
+        filtros = {
+            "qtype": "radacct.username",
+            "query": login,
+            "oper": "=",
+            "sortname": "acctstarttime",
+            "sortorder": "desc",
+        }
+        dados = self.listar("radacct", filtros=filtros, page=1, rp=limite)
+        rows = dados.get("registros") or dados.get("rows") or []
+        if isinstance(rows, dict):
+            rows = list(rows.values())
+        inicio_periodo = datetime.now() - timedelta(days=dias)
+        sessoes = [normalizar_sessao_radius(row) for row in rows]
+        sessoes = [row for row in sessoes if row["inicio_dt"] and row["inicio_dt"] >= inicio_periodo]
+        return calcular_intervalos_desconectado(sessoes)
 
     def coletar_sinais(self) -> list[dict]:
         fibras = self.listar_todos("radpop_radio_cliente_fibra")
@@ -239,6 +258,8 @@ def inteiro(valor: Any) -> int | None:
 def formatar_duracao(segundos: int | None) -> str:
     if segundos is None or segundos < 0:
         return ""
+    if segundos < 60:
+        return f"{segundos}s"
     dias, resto = divmod(segundos, 86400)
     horas, resto = divmod(resto, 3600)
     minutos, _ = divmod(resto, 60)
@@ -292,6 +313,44 @@ def calcular_tempo_desconectado(
     if segundos < 0:
         return ""
     return formatar_duracao(segundos)
+
+
+def normalizar_sessao_radius(row: dict) -> dict:
+    inicio = parse_ixc_datetime(str(primeiro_valor(row, ["acctstarttime"]) or ""))
+    fim = parse_ixc_datetime(str(primeiro_valor(row, ["acctstoptime"]) or ""))
+    tempo_segundos = inteiro(primeiro_valor(row, ["acctsessiontime"]))
+    return {
+        "inicio_dt": inicio,
+        "fim_dt": fim,
+        "inicio": formatar_data_br(inicio),
+        "fim": formatar_data_br(fim),
+        "tempo_ligado": formatar_duracao(tempo_segundos),
+        "tempo_desconectado": "",
+        "motivo": str(primeiro_valor(row, ["acctterminatecause"]) or ""),
+        "ip": str(primeiro_valor(row, ["framedipaddress"]) or ""),
+        "mac": str(primeiro_valor(row, ["callingstationid"]) or ""),
+        "concentrador": str(primeiro_valor(row, ["nasipaddress"]) or ""),
+    }
+
+
+def calcular_intervalos_desconectado(sessoes_desc: list[dict]) -> list[dict]:
+    sessoes_asc = sorted(sessoes_desc, key=lambda row: row["inicio_dt"] or datetime.min)
+    agora = datetime.now()
+    for indice, sessao in enumerate(sessoes_asc):
+        fim = sessao.get("fim_dt")
+        if not fim:
+            continue
+        proxima = sessoes_asc[indice + 1] if indice + 1 < len(sessoes_asc) else None
+        volta = proxima.get("inicio_dt") if proxima else agora
+        if volta and volta >= fim:
+            sessao["tempo_desconectado"] = formatar_duracao(int((volta - fim).total_seconds()))
+    return sorted(sessoes_asc, key=lambda row: row["inicio_dt"] or datetime.min, reverse=True)
+
+
+def formatar_data_br(valor: datetime | None) -> str:
+    if not valor:
+        return ""
+    return valor.strftime("%d/%m/%Y %H:%M:%S")
 
 
 def status_online(valor: Any) -> str | None:
