@@ -15,7 +15,8 @@
   <div class="signal-summary">
     <div><span>RX</span><strong>{{ "%.2f"|format(cliente["rx"]) if cliente["rx"] is not none else "-" }}</strong></div>
     <div><span>TX</span><strong>{{ "%.2f"|format(cliente["tx"]) if cliente["tx"] is not none else "-" }}</strong></div>
-    <div><span>ONU</span><strong>{{ cliente["status_onu"] or "-" }}</strong></div>
+    <div><span>Contrato</span><strong>{{ cliente["status_contrato"] or "-" }}</strong></div>
+    <div><span>Acesso</span><strong>{{ cliente["status_acesso"] or "-" }}</strong></div>
   </div>
 </section>
 
@@ -52,7 +53,8 @@
       <thead>
         <tr>
           <th>Coleta</th>
-          <th>Status</th>
+          <th>Status acesso</th>
+          <th>Status contrato</th>
           <th>Tempo ligado</th>
           <th>Última desconexão</th>
           <th>Tempo desconectado</th>
@@ -63,14 +65,15 @@
         {% for item in historico %}
         <tr>
           <td class="mono">{{ item["data_hora"] }}</td>
-          <td class="mono">{{ item["status_onu"] or "-" }}</td>
+          <td class="mono">{{ item["status_acesso"] or "-" }}</td>
+          <td class="mono">{{ item["status_contrato"] or "-" }}</td>
           <td class="mono">{{ item["tempo_ligado"] or "-" }}</td>
           <td class="mono">{{ item["ultima_desconexao"] or "-" }}</td>
           <td class="mono">{{ item["tempo_desconectado"] or "-" }}</td>
           <td>{{ item["motivo_desconexao"] or item["causa_ultima_queda"] or "-" }}</td>
         </tr>
         {% else %}
-        <tr><td colspan="6" class="text-center text-muted py-4">Nenhum histórico de conexão encontrado.</td></tr>
+        <tr><td colspan="7" class="text-center text-muted py-4">Nenhum histórico de conexão encontrado.</td></tr>
         {% endfor %}
       </tbody>
     </table>

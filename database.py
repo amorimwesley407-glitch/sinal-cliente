@@ -35,6 +35,8 @@ def init_db() -> None:
                 score INTEGER NOT NULL,
                 status TEXT NOT NULL,
                 status_onu TEXT,
+                status_contrato TEXT,
+                status_acesso TEXT,
                 categoria TEXT NOT NULL,
                 instavel INTEGER NOT NULL DEFAULT 0,
                 oscilacao_24h REAL NOT NULL DEFAULT 0,
@@ -54,6 +56,8 @@ def init_db() -> None:
         columns = {row["name"] for row in conn.execute("PRAGMA table_info(historico_sinal)").fetchall()}
         migrations = {
             "contato": "ALTER TABLE historico_sinal ADD COLUMN contato TEXT",
+            "status_contrato": "ALTER TABLE historico_sinal ADD COLUMN status_contrato TEXT",
+            "status_acesso": "ALTER TABLE historico_sinal ADD COLUMN status_acesso TEXT",
             "tempo_ligado": "ALTER TABLE historico_sinal ADD COLUMN tempo_ligado TEXT",
             "tempo_ligado_segundos": "ALTER TABLE historico_sinal ADD COLUMN tempo_ligado_segundos INTEGER",
             "pon": "ALTER TABLE historico_sinal ADD COLUMN pon TEXT",
@@ -77,10 +81,11 @@ def salvar_coleta(registro: dict) -> None:
             """
             INSERT INTO historico_sinal (
                 cliente_id, nome, contato, login, rx, tx, score, status, status_onu,
-                categoria, instavel, oscilacao_24h, tempo_ligado, tempo_ligado_segundos,
+                status_contrato, status_acesso, categoria, instavel, oscilacao_24h,
+                tempo_ligado, tempo_ligado_segundos,
                 pon, caixa, porta_caixa, ultima_desconexao, tempo_desconectado,
                 motivo_desconexao, causa_ultima_queda, data_hora
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 registro["cliente_id"],
@@ -92,6 +97,8 @@ def salvar_coleta(registro: dict) -> None:
                 registro["score"],
                 registro["status"],
                 registro.get("status_onu"),
+                registro.get("status_contrato", ""),
+                registro.get("status_acesso", ""),
                 registro["categoria"],
                 int(registro.get("instavel", False)),
                 registro.get("oscilacao_24h", 0),

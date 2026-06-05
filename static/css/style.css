@@ -359,9 +359,9 @@ a {
 
 .signal-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(90px, 1fr));
+  grid-template-columns: repeat(4, minmax(90px, 1fr));
   gap: 10px;
-  min-width: 360px;
+  min-width: 460px;
 }
 
 .signal-summary div,

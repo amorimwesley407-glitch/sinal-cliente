@@ -100,6 +100,10 @@ class IXCClient:
         cliente_por_id = {str(row.get("id")): row for row in clientes if row.get("id")}
         logger.info("IXC: %s clientes carregados.", len(cliente_por_id))
 
+        contratos = self.listar_todos("cliente_contrato")
+        contrato_por_id = {str(row.get("id")): row for row in contratos if row.get("id")}
+        logger.info("IXC: %s contratos carregados.", len(contrato_por_id))
+
         caixas = self.listar_todos("rad_caixa_ftth")
         caixa_por_id = {str(row.get("id")): row for row in caixas if row.get("id")}
         logger.info("IXC: %s caixas FTTH carregadas.", len(caixa_por_id))
@@ -110,6 +114,7 @@ class IXCClient:
             radius = rad_por_id.get(registro.get("radusuario_id", ""))
             cliente_id = str(primeiro_valor(radius or {}, ["id_cliente"]) or registro["cliente_id"])
             cliente = cliente_por_id.get(cliente_id)
+            contrato = contrato_por_id.get(registro.get("contrato_id", ""))
             caixa = caixa_por_id.get(registro.get("caixa_id", ""))
 
             registro["cliente_id"] = cliente_id or registro["cliente_id"]
@@ -117,6 +122,8 @@ class IXCClient:
             registro["contato"] = contato_cliente(cliente or {})
             registro["login"] = primeiro_valor(radius or {}, ["login", "usuario"]) or registro["login"]
             registro["status_onu"] = status_online(primeiro_valor(radius or {}, ["online"])) or registro["status_onu"]
+            registro["status_contrato"] = status_contrato(contrato or {})
+            registro["status_acesso"] = status_acesso_contrato(contrato or {}, radius or {})
             registro["caixa"] = primeiro_valor(caixa or {}, ["descricao", "nome"]) or registro["caixa"]
             registro.update(dados_conexao(radius or {}))
             coleta.append(registro)
@@ -127,11 +134,14 @@ class IXCClient:
             "cliente_id": str(primeiro_valor(fibra, ["id_cliente", "cliente_id", "idcliente", "id_contrato", "id"]) or ""),
             "nome": str(primeiro_valor(fibra, ["cliente", "nome", "razao"]) or "Cliente sem nome"),
             "contato": "",
+            "contrato_id": str(primeiro_valor(fibra, ["id_contrato", "contrato_id"]) or ""),
             "login": str(primeiro_valor(fibra, ["login", "login_pppoe", "pppoe"]) or ""),
             "radusuario_id": str(primeiro_valor(fibra, ["id_radusuario", "radusuario_id", "id_login"]) or ""),
             "rx": normalizar_float(primeiro_valor(fibra, ["sinal_rx", "rx", "potencia_rx", "onu_rx"])),
             "tx": normalizar_float(primeiro_valor(fibra, ["sinal_tx", "tx", "potencia_tx", "onu_tx"])),
             "status_onu": status_online(primeiro_valor(fibra, ["status_onu", "status", "online"])) or "DESCONHECIDO",
+            "status_acesso": "DESCONHECIDO",
+            "status_contrato": "DESCONHECIDO",
             "pon": str(primeiro_valor(fibra, ["ponid", "pon", "ponno"]) or ""),
             "caixa_id": str(primeiro_valor(fibra, ["id_caixa_ftth", "caixa", "caixa_ftth"]) or ""),
             "caixa": str(primeiro_valor(fibra, ["id_caixa_ftth", "caixa", "caixa_ftth"]) or ""),
@@ -174,6 +184,37 @@ def dados_conexao(radius: dict) -> dict:
         "tempo_desconectado": calcular_tempo_desconectado(ultima_desconexao, ultima_conexao),
         "motivo_desconexao": str(primeiro_valor(radius, ["motivo_desconexao"]) or ""),
     }
+
+
+def status_contrato(contrato: dict) -> str:
+    status = str(primeiro_valor(contrato, ["status"]) or "").strip().upper()
+    mapa = {
+        "A": "ATIVO",
+        "I": "INATIVO",
+        "P": "PRÉ-CONTRATO",
+        "D": "DESISTIU",
+        "N": "NEGATIVADO",
+        "C": "CANCELADO",
+    }
+    return mapa.get(status, status or "DESCONHECIDO")
+
+
+def status_acesso_contrato(contrato: dict, radius: dict) -> str:
+    status = str(primeiro_valor(contrato, ["status_internet"]) or "").strip().upper()
+    mapa = {
+        "A": "LIBERADO",
+        "AA": "AVISO DE ATRASO",
+        "CA": "BLOQUEIO AUTOMÁTICO",
+        "CM": "BLOQUEIO MANUAL",
+        "D": "DESATIVADO",
+        "FA": "FINANCEIRO EM ATRASO",
+    }
+    if status:
+        return mapa.get(status, status)
+    ativo = str(primeiro_valor(radius, ["ativo"]) or "").strip().upper()
+    if ativo == "N":
+        return "INATIVO"
+    return status_online(primeiro_valor(radius, ["online"])) or "DESCONHECIDO"
 
 
 def inteiro(valor: Any) -> int | None:
