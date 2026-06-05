@@ -310,6 +310,40 @@ a {
   color: var(--muted);
 }
 
+.status-ativo,
+.status-online {
+  background: rgba(31, 143, 77, .13);
+  color: var(--green);
+}
+
+.status-inativo,
+.status-desativado,
+.status-cancelado,
+.status-desistiu,
+.status-sem-status {
+  background: rgba(100, 115, 134, .14);
+  color: var(--muted);
+}
+
+.status-bloqueio-automatico,
+.status-bloqueio-manual,
+.status-negativado {
+  background: rgba(201, 42, 42, .12);
+  color: var(--red);
+}
+
+.status-aviso-de-atraso,
+.status-financeiro-em-atraso,
+.status-pre-contrato {
+  background: rgba(183, 121, 31, .14);
+  color: var(--amber);
+}
+
+.signal-summary .badge {
+  display: inline-block;
+  min-width: 0;
+}
+
 .search-form {
   align-items: center;
   display: flex;

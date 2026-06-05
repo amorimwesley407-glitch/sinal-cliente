@@ -9,14 +9,14 @@
     <div class="client-meta">
       <span class="mono">{{ cliente["login"] or "PPPoE não informado" }}</span>
       <span>{{ cliente["contato"] or "Sem contato cadastrado" }}</span>
-      <span class="badge status-{{ cliente['categoria']|lower|replace('í','i')|replace('á','a')|replace('ç','c')|replace('ã','a')|replace(' ','-') }}">{{ cliente["categoria"] }}</span>
+      <span class="badge status-{{ cliente['categoria']|status_class }}">{{ cliente["categoria"] }}</span>
     </div>
   </div>
   <div class="signal-summary">
     <div><span>RX</span><strong>{{ "%.2f"|format(cliente["rx"]) if cliente["rx"] is not none else "-" }}</strong></div>
     <div><span>TX</span><strong>{{ "%.2f"|format(cliente["tx"]) if cliente["tx"] is not none else "-" }}</strong></div>
-    <div><span>Contrato</span><strong>{{ cliente["status_contrato"] or "-" }}</strong></div>
-    <div><span>Acesso</span><strong>{{ cliente["status_acesso"] or "-" }}</strong></div>
+    <div><span>Contrato</span><strong><span class="badge status-{{ cliente['status_contrato']|status_class }}">{{ cliente["status_contrato"] or "-" }}</span></strong></div>
+    <div><span>Acesso</span><strong><span class="badge status-{{ cliente['status_acesso']|status_class }}">{{ cliente["status_acesso"] or "-" }}</span></strong></div>
   </div>
 </section>
 
@@ -65,8 +65,8 @@
         {% for item in historico %}
         <tr>
           <td class="mono">{{ item["data_hora"] }}</td>
-          <td class="mono">{{ item["status_acesso"] or "-" }}</td>
-          <td class="mono">{{ item["status_contrato"] or "-" }}</td>
+          <td><span class="badge status-{{ item['status_acesso']|status_class }}">{{ item["status_acesso"] or "-" }}</span></td>
+          <td><span class="badge status-{{ item['status_contrato']|status_class }}">{{ item["status_contrato"] or "-" }}</span></td>
           <td class="mono">{{ item["tempo_ligado"] or "-" }}</td>
           <td class="mono">{{ item["ultima_desconexao"] or "-" }}</td>
           <td class="mono">{{ item["tempo_desconectado"] or "-" }}</td>

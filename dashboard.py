@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import io
+import re
+import unicodedata
 
 import pandas as pd
 from flask import Blueprint, Response, render_template, request, send_file
@@ -30,6 +32,14 @@ def dashboard():
         top_criticos=top_criticos(),
         evolucao=serie_evolucao(),
     )
+
+
+@dashboard_bp.app_template_filter("status_class")
+def status_class(value) -> str:
+    texto = unicodedata.normalize("NFKD", str(value or "").lower())
+    texto = texto.encode("ascii", "ignore").decode("ascii")
+    texto = re.sub(r"[^a-z0-9]+", "-", texto).strip("-")
+    return texto or "sem-status"
 
 
 @dashboard_bp.route("/clientes-criticos")
