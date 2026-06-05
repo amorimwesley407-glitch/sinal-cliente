@@ -13,6 +13,7 @@ from api_ixc import IXCClient
 from database import (
     listar_bons_excelentes,
     listar_offline_24h,
+    listar_offline_mais_de_um_dia,
     listar_ultima_coleta,
     obter_historico_cliente,
     serie_evolucao,
@@ -87,6 +88,11 @@ def clientes_bons():
 @dashboard_bp.route("/clientes-excelentes")
 def clientes_excelentes():
     return renderizar_lista("Clientes Excelentes", listar_ultima_coleta("AND categoria = 'EXCELENTE'"))
+
+
+@dashboard_bp.route("/offiline")
+def offiline():
+    return renderizar_lista("Offiline", listar_offline_mais_de_um_dia())
 
 
 @dashboard_bp.route("/cliente/<cliente_id>")

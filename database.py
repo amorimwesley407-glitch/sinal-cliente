@@ -215,6 +215,82 @@ def listar_offline_24h(limite: int | None = 30) -> list[dict]:
         return rows
 
 
+def listar_offline_mais_de_um_dia(limite: int | None = None) -> list[dict]:
+    limite_data = (datetime.now() - timedelta(days=1)).isoformat(timespec="seconds")
+    offline = ("offline", "off-line", "down", "desconectada", "desconectado", "sem sinal")
+    placeholders = ", ".join("?" for _ in offline)
+    query = f"""
+        WITH base AS (
+            SELECT
+                *,
+                COALESCE(NULLIF(login, ''), NULLIF(cliente_id, ''), nome) AS chave
+            FROM historico_sinal
+            WHERE cliente_id IS NOT NULL
+              AND cliente_id != ''
+        ),
+        ultimos AS (
+            SELECT *, ROW_NUMBER() OVER (
+                PARTITION BY chave
+                ORDER BY data_hora DESC, id DESC
+            ) AS rn
+            FROM base
+        )
+        SELECT atual.*
+        FROM ultimos atual
+        WHERE atual.rn = 1
+          AND {filtro_monitoraveis_sql()}
+          AND LOWER(TRIM(COALESCE(atual.status_onu, ''))) IN ({placeholders})
+          AND EXISTS (
+              SELECT 1
+              FROM base antigo
+              WHERE antigo.chave = atual.chave
+                AND antigo.data_hora <= ?
+                AND LOWER(TRIM(COALESCE(antigo.status_onu, ''))) IN ({placeholders})
+          )
+          AND NOT EXISTS (
+              SELECT 1
+              FROM base recente
+              WHERE recente.chave = atual.chave
+                AND recente.data_hora >= ?
+                AND LOWER(TRIM(COALESCE(recente.status_onu, ''))) NOT IN ({placeholders})
+          )
+        ORDER BY atual.data_hora DESC, atual.score ASC, atual.rx ASC
+        { "LIMIT ?" if limite else "" }
+    """
+    params = [
+        *STATUS_NAO_MONITORAVEIS,
+        *STATUS_NAO_MONITORAVEIS,
+        *offline,
+        limite_data,
+        *offline,
+        limite_data,
+        *offline,
+    ]
+    if limite:
+        params.append(limite)
+    with get_connection() as conn:
+        rows = [dict(row) for row in conn.execute(query, tuple(params)).fetchall()]
+        sinais_validos = _ultimos_sinais_validos(conn, rows)
+        for row in rows:
+            if _sinal_valido(row.get("rx")) and _sinal_valido(row.get("tx")):
+                continue
+            valido = sinais_validos.get(_chave_sinal(row))
+            if not valido:
+                if not _sinal_valido(row.get("rx")):
+                    row["rx"] = None
+                if not _sinal_valido(row.get("tx")):
+                    row["tx"] = None
+                row["categoria"] = "SEM DADOS"
+                continue
+            if not _sinal_valido(row.get("rx")):
+                row["rx"] = valido["rx"]
+            if not _sinal_valido(row.get("tx")):
+                row["tx"] = valido["tx"]
+            row["categoria"] = valido["categoria"] or row["categoria"]
+            row["score"] = valido["score"] if valido["score"] is not None else row["score"]
+        return rows
+
+
 def _sinal_valido(valor) -> bool:
     return valor not in (None, 0, 0.0)
 
