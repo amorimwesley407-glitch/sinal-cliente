@@ -154,16 +154,22 @@ def listar_ultima_coleta(where: str = "", params: tuple = ()) -> list[sqlite3.Ro
         return conn.execute(query, params).fetchall()
 
 
-def obter_historico_cliente(cliente_id: str, limite: int = 50) -> list[sqlite3.Row]:
+def obter_historico_cliente(cliente_id: str, limite: int = 50, dias: int | None = None) -> list[sqlite3.Row]:
+    filtro_data = ""
+    params: list = [cliente_id]
+    if dias:
+        filtro_data = "AND data_hora >= ?"
+        params.append((datetime.now() - timedelta(days=dias)).isoformat(timespec="seconds"))
+    params.append(limite)
     with get_connection() as conn:
         return conn.execute(
-            """
+            f"""
             SELECT * FROM historico_sinal
-            WHERE cliente_id = ?
+            WHERE cliente_id = ? {filtro_data}
             ORDER BY data_hora DESC
             LIMIT ?
             """,
-            (cliente_id, limite),
+            tuple(params),
         ).fetchall()
 
 

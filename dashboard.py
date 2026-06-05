@@ -69,7 +69,7 @@ def clientes_excelentes():
 
 @dashboard_bp.route("/cliente/<cliente_id>")
 def detalhe_cliente(cliente_id: str):
-    historico = obter_historico_cliente(cliente_id, 100)
+    historico = obter_historico_cliente(cliente_id, 500, dias=7)
     cliente_atual = historico[0] if historico else None
     return render_template(
         "cliente.html",
@@ -106,7 +106,7 @@ def exportar(formato: str):
 
 @dashboard_bp.route("/api/cliente/<cliente_id>/historico")
 def api_historico_cliente(cliente_id: str):
-    rows = obter_historico_cliente(cliente_id, int(request.args.get("limite", 50)))[::-1]
+    rows = obter_historico_cliente(cliente_id, int(request.args.get("limite", 500)), dias=7)[::-1]
     return {
         "labels": [row["data_hora"] for row in rows],
         "rx": [row["rx"] for row in rows],
