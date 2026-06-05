@@ -48,6 +48,7 @@
     <h2>Fila operacional</h2>
     <span>{{ paginacao.inicio }}-{{ paginacao.fim }} de {{ paginacao.total }} clientes offline nas últimas 24 horas</span>
   </div>
+  {% set mostrar_ultima_queda = true %}
   {% include "_tabela_clientes.html" %}
   {% include "_paginacao.html" %}
 </section>

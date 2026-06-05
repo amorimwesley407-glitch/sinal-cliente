@@ -50,6 +50,8 @@ def init_db() -> None:
                 tempo_desconectado TEXT,
                 motivo_desconexao TEXT,
                 causa_ultima_queda TEXT,
+                tipo_bloqueio TEXT,
+                data_bloqueio TEXT,
                 data_hora TEXT NOT NULL
             )
             """
@@ -68,6 +70,8 @@ def init_db() -> None:
             "tempo_desconectado": "ALTER TABLE historico_sinal ADD COLUMN tempo_desconectado TEXT",
             "motivo_desconexao": "ALTER TABLE historico_sinal ADD COLUMN motivo_desconexao TEXT",
             "causa_ultima_queda": "ALTER TABLE historico_sinal ADD COLUMN causa_ultima_queda TEXT",
+            "tipo_bloqueio": "ALTER TABLE historico_sinal ADD COLUMN tipo_bloqueio TEXT",
+            "data_bloqueio": "ALTER TABLE historico_sinal ADD COLUMN data_bloqueio TEXT",
         }
         for column, sql in migrations.items():
             if column not in columns:
@@ -85,8 +89,8 @@ def salvar_coleta(registro: dict) -> None:
                 status_contrato, status_acesso, categoria, instavel, oscilacao_24h,
                 tempo_ligado, tempo_ligado_segundos,
                 pon, caixa, porta_caixa, ultima_desconexao, tempo_desconectado,
-                motivo_desconexao, causa_ultima_queda, data_hora
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                motivo_desconexao, causa_ultima_queda, tipo_bloqueio, data_bloqueio, data_hora
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 registro["cliente_id"],
@@ -112,6 +116,8 @@ def salvar_coleta(registro: dict) -> None:
                 registro.get("tempo_desconectado", ""),
                 registro.get("motivo_desconexao", ""),
                 registro.get("causa_ultima_queda", ""),
+                registro.get("tipo_bloqueio", ""),
+                registro.get("data_bloqueio", ""),
                 registro["data_hora"],
             ),
         )
@@ -160,6 +166,7 @@ def listar_ultima_coleta(where: str = "", params: tuple = ()) -> list[sqlite3.Ro
 
 def listar_offline_24h(limite: int | None = 30) -> list[dict]:
     inicio = (datetime.now() - timedelta(hours=24)).isoformat(timespec="seconds")
+    inicio_queda = (datetime.now() - timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
     offline = ("offline", "off-line", "down", "desconectada", "desconectado", "sem sinal")
     placeholders = ", ".join("?" for _ in offline)
     query = f"""
@@ -177,6 +184,7 @@ def listar_offline_24h(limite: int | None = 30) -> list[dict]:
         WHERE rn = 1
           AND {filtro_monitoraveis_sql()}
           AND LOWER(TRIM(COALESCE(status_onu, ''))) IN ({placeholders})
+          AND datetime(REPLACE(NULLIF(ultima_desconexao, ''), 'T', ' ')) >= datetime(?)
         ORDER BY data_hora DESC, score ASC, rx ASC
         { "LIMIT ?" if limite else "" }
     """
@@ -186,19 +194,21 @@ def listar_offline_24h(limite: int | None = 30) -> list[dict]:
             *STATUS_NAO_MONITORAVEIS,
             *STATUS_NAO_MONITORAVEIS,
             *offline,
+            inicio_queda,
             limite,
         ) if limite else (
             inicio,
             *STATUS_NAO_MONITORAVEIS,
             *STATUS_NAO_MONITORAVEIS,
             *offline,
+            inicio_queda,
         )
         rows = [dict(row) for row in conn.execute(query, params).fetchall()]
         sinais_validos = _ultimos_sinais_validos(conn, rows)
         for row in rows:
             if _sinal_valido(row.get("rx")) and _sinal_valido(row.get("tx")):
                 continue
-            valido = sinais_validos.get(_chave_sinal(row))
+            valido = _sinal_valido_do_cliente(sinais_validos, row)
             if not valido:
                 if not _sinal_valido(row.get("rx")):
                     row["rx"] = None
@@ -216,7 +226,7 @@ def listar_offline_24h(limite: int | None = 30) -> list[dict]:
 
 
 def listar_offline_mais_de_um_dia(limite: int | None = None) -> list[dict]:
-    limite_data = (datetime.now() - timedelta(days=1)).isoformat(timespec="seconds")
+    limite_data = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d %H:%M:%S")
     offline = ("offline", "off-line", "down", "desconectada", "desconectado", "sem sinal")
     placeholders = ", ".join("?" for _ in offline)
     query = f"""
@@ -240,21 +250,8 @@ def listar_offline_mais_de_um_dia(limite: int | None = None) -> list[dict]:
         WHERE atual.rn = 1
           AND {filtro_monitoraveis_sql()}
           AND LOWER(TRIM(COALESCE(atual.status_onu, ''))) IN ({placeholders})
-          AND EXISTS (
-              SELECT 1
-              FROM base antigo
-              WHERE antigo.chave = atual.chave
-                AND antigo.data_hora <= ?
-                AND LOWER(TRIM(COALESCE(antigo.status_onu, ''))) IN ({placeholders})
-          )
-          AND NOT EXISTS (
-              SELECT 1
-              FROM base recente
-              WHERE recente.chave = atual.chave
-                AND recente.data_hora >= ?
-                AND LOWER(TRIM(COALESCE(recente.status_onu, ''))) NOT IN ({placeholders})
-          )
-        ORDER BY atual.data_hora DESC, atual.score ASC, atual.rx ASC
+          AND datetime(REPLACE(NULLIF(atual.ultima_desconexao, ''), 'T', ' ')) <= datetime(?)
+        ORDER BY datetime(REPLACE(atual.ultima_desconexao, 'T', ' ')) ASC, atual.score ASC, atual.rx ASC
         { "LIMIT ?" if limite else "" }
     """
     params = [
@@ -262,9 +259,6 @@ def listar_offline_mais_de_um_dia(limite: int | None = None) -> list[dict]:
         *STATUS_NAO_MONITORAVEIS,
         *offline,
         limite_data,
-        *offline,
-        limite_data,
-        *offline,
     ]
     if limite:
         params.append(limite)
@@ -274,7 +268,7 @@ def listar_offline_mais_de_um_dia(limite: int | None = None) -> list[dict]:
         for row in rows:
             if _sinal_valido(row.get("rx")) and _sinal_valido(row.get("tx")):
                 continue
-            valido = sinais_validos.get(_chave_sinal(row))
+            valido = _sinal_valido_do_cliente(sinais_validos, row)
             if not valido:
                 if not _sinal_valido(row.get("rx")):
                     row["rx"] = None
@@ -306,15 +300,31 @@ def _chave_sinal(row: dict) -> str:
     return str(row.get("login") or row.get("cliente_id") or "")
 
 
+def _sinal_valido_do_cliente(sinais_validos: dict[str, sqlite3.Row], row: dict) -> sqlite3.Row | None:
+    for chave in (row.get("login"), row.get("cliente_id"), _chave_sinal(row)):
+        chave = str(chave or "")
+        if chave and chave in sinais_validos:
+            return sinais_validos[chave]
+    return None
+
+
 def _ultimos_sinais_validos(conn: sqlite3.Connection, rows: list[dict]) -> dict[str, sqlite3.Row]:
-    chaves = sorted({_chave_sinal(row) for row in rows if _chave_sinal(row)})
-    if not chaves:
+    identificadores = sorted(
+        {
+            str(valor)
+            for row in rows
+            for valor in (row.get("login"), row.get("cliente_id"), _chave_sinal(row))
+            if valor
+        }
+    )
+    if not identificadores:
         return {}
-    placeholders = ", ".join("?" for _ in chaves)
+    placeholders = ", ".join("?" for _ in identificadores)
     query = f"""
         WITH validos AS (
             SELECT
-                COALESCE(NULLIF(login, ''), NULLIF(cliente_id, '')) AS chave,
+                login,
+                cliente_id,
                 rx,
                 tx,
                 categoria,
@@ -324,38 +334,42 @@ def _ultimos_sinais_validos(conn: sqlite3.Connection, rows: list[dict]) -> dict[
                     ORDER BY data_hora DESC, id DESC
                 ) AS rn
             FROM historico_sinal
-            WHERE COALESCE(NULLIF(login, ''), NULLIF(cliente_id, '')) IN ({placeholders})
+            WHERE (
+                login IN ({placeholders})
+                OR cliente_id IN ({placeholders})
+            )
               AND (
                 (rx IS NOT NULL AND rx != 0)
                 OR (tx IS NOT NULL AND tx != 0)
               )
         )
-        SELECT chave, rx, tx, categoria, score
+        SELECT login, cliente_id, rx, tx, categoria, score
         FROM validos
         WHERE rn = 1
     """
-    return {
-        row["chave"]: row
-        for row in conn.execute(query, tuple(chaves)).fetchall()
-    }
+    sinais = {}
+    for row in conn.execute(query, (*identificadores, *identificadores)).fetchall():
+        for chave in (row["login"], row["cliente_id"]):
+            chave = str(chave or "")
+            if chave and chave not in sinais:
+                sinais[chave] = row
+    return sinais
 
 
 
-def obter_historico_cliente(cliente_id: str, limite: int | None = 50, dias: int | None = None) -> list[sqlite3.Row]:
+def obter_historico_cliente(
+    cliente_id: str,
+    limite: int | None = 50,
+    dias: int | None = None,
+    login: str = "",
+) -> list[sqlite3.Row]:
     filtro_data = ""
-    params: list = [cliente_id, cliente_id]
-    if dias:
-        filtro_data = "AND data_hora >= ?"
-        params.append((datetime.now() - timedelta(days=dias)).isoformat(timespec="seconds"))
-    filtro_limite = ""
-    if limite:
-        filtro_limite = "LIMIT ?"
-        params.append(limite)
-    with get_connection() as conn:
-        return conn.execute(
-            f"""
-            SELECT * FROM historico_sinal
-            WHERE (
+    if login:
+        filtro_cliente = "login = ?"
+        params: list = [login]
+    else:
+        filtro_cliente = """
+            (
                 cliente_id = ?
                 OR login = (
                     SELECT login
@@ -367,6 +381,20 @@ def obter_historico_cliente(cliente_id: str, limite: int | None = 50, dias: int 
                     LIMIT 1
                 )
             )
+        """
+        params = [cliente_id, cliente_id]
+    if dias:
+        filtro_data = "AND data_hora >= ?"
+        params.append((datetime.now() - timedelta(days=dias)).isoformat(timespec="seconds"))
+    filtro_limite = ""
+    if limite:
+        filtro_limite = "LIMIT ?"
+        params.append(limite)
+    with get_connection() as conn:
+        return conn.execute(
+            f"""
+            SELECT * FROM historico_sinal
+            WHERE {filtro_cliente}
             {filtro_data}
             ORDER BY data_hora DESC, id DESC
             {filtro_limite}

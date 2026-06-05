@@ -2,6 +2,7 @@
 {% block page_title %}Ficha do cliente{% endblock %}
 {% block content %}
 {% if cliente %}
+{% set acesso_bloqueado = cliente["status_acesso"] in ["BLOQUEIO AUTOMÁTICO", "BLOQUEIO MANUAL"] %}
 <section class="client-hero">
   <div>
     <span class="eyebrow">Cliente {{ cliente_id }}</span>
@@ -13,8 +14,8 @@
     </div>
   </div>
   <div class="signal-summary">
-    <div><span>RX</span><strong>{{ "%.2f"|format(cliente["rx"]) if cliente["rx"] is not none else "-" }}</strong></div>
-    <div><span>TX</span><strong>{{ "%.2f"|format(cliente["tx"]) if cliente["tx"] is not none else "-" }}</strong></div>
+    <div><span>RX</span><strong>{{ cliente["rx"]|sinal_optico }}</strong></div>
+    <div><span>TX</span><strong>{{ cliente["tx"]|sinal_optico }}</strong></div>
     <div><span>Contrato</span><strong><span class="badge status-{{ cliente['status_contrato']|status_class }}">{{ cliente["status_contrato"] or "-" }}</span></strong></div>
     <div><span>Acesso</span><strong><span class="badge status-{{ cliente['status_acesso']|status_class }}">{{ cliente["status_acesso"] or "-" }}</span></strong></div>
   </div>
@@ -41,12 +42,24 @@
     <strong>{{ cliente["ultima_desconexao"] or "-" }}</strong>
     <small>{{ cliente["motivo_desconexao"] or cliente["causa_ultima_queda"] or "sem motivo informado" }}</small>
   </div>
+  {% if acesso_bloqueado %}
+  <div class="detail-card">
+    <span>{{ cliente["status_acesso"] }}</span>
+    <strong>{{ cliente["data_bloqueio"] or "-" }}</strong>
+    <small>data registrada no contrato IXC</small>
+  </div>
+  {% endif %}
 </section>
 
 <section class="panel mt-3">
   <div class="panel-header">
     <h2>Histórico de conexão</h2>
-    <span>últimos 7 dias</span>
+    <span>
+      últimos 7 dias
+      {% if acesso_bloqueado %}
+        / {{ cliente["status_acesso"] }}{% if cliente["data_bloqueio"] %}: {{ cliente["data_bloqueio"] }}{% endif %}
+      {% endif %}
+    </span>
   </div>
   <div class="table-responsive connection-history">
     <table class="table table-sm align-middle">

@@ -12,26 +12,32 @@
         <th>Contrato</th>
         <th>Acesso</th>
         <th>Motivo</th>
+        {% if mostrar_ultima_queda|default(false) %}
+        <th>Última queda</th>
+        {% endif %}
         <th>Última coleta</th>
       </tr>
     </thead>
     <tbody>
       {% for cliente in clientes %}
       <tr>
-        <td><a class="client-link" href="{{ url_for('dashboard.detalhe_cliente', cliente_id=cliente['cliente_id']) }}">{{ cliente["nome"] }}</a></td>
+        <td><a class="client-link" href="{{ url_for('dashboard.detalhe_cliente', cliente_id=cliente['cliente_id'], login=cliente['login']) }}">{{ cliente["nome"] }}</a></td>
         <td>{{ cliente["contato"] or "-" }}</td>
         <td class="mono">{{ cliente["login"] or "-" }}</td>
-        <td class="mono">{{ "%.2f"|format(cliente["rx"]) if cliente["rx"] is not none else "-" }}</td>
-        <td class="mono">{{ "%.2f"|format(cliente["tx"]) if cliente["tx"] is not none else "-" }}</td>
+        <td class="mono">{{ cliente["rx"]|sinal_optico }}</td>
+        <td class="mono">{{ cliente["tx"]|sinal_optico }}</td>
         <td><span class="badge status-{{ cliente['categoria']|status_class }}">{{ cliente["categoria"] }}</span></td>
         <td><span class="badge status-{{ cliente['status_onu']|online_status }}">{{ cliente["status_onu"]|online_label }}</span></td>
         <td><span class="badge status-{{ cliente['status_contrato']|status_class }}">{{ cliente["status_contrato"] or "-" }}</span></td>
         <td><span class="badge status-{{ cliente['status_acesso']|status_class }}">{{ cliente["status_acesso"] or "-" }}</span></td>
         <td class="reason-cell">{{ cliente["motivo_desconexao"] or cliente["causa_ultima_queda"] or "-" }}</td>
+        {% if mostrar_ultima_queda|default(false) %}
+        <td class="mono">{{ cliente["ultima_desconexao"] or "-" }}</td>
+        {% endif %}
         <td class="mono">{{ cliente["data_hora"] }}</td>
       </tr>
       {% else %}
-      <tr><td colspan="11" class="text-center text-muted py-4">Nenhum registro encontrado.</td></tr>
+      <tr><td colspan="{{ 12 if mostrar_ultima_queda|default(false) else 11 }}" class="text-center text-muted py-4">Nenhum registro encontrado.</td></tr>
       {% endfor %}
     </tbody>
   </table>

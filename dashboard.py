@@ -65,6 +65,13 @@ def online_status(value) -> str:
     return "online" if _cliente_online(value) else "offline"
 
 
+@dashboard_bp.app_template_filter("sinal_optico")
+def sinal_optico(value) -> str:
+    if value in (None, 0, 0.0):
+        return "-"
+    return f"{float(value):.2f}"
+
+
 @dashboard_bp.route("/clientes-criticos")
 def clientes_criticos():
     return renderizar_lista("Clientes Críticos", listar_ultima_coleta("AND categoria = 'CRÍTICO'"))
@@ -92,18 +99,24 @@ def clientes_excelentes():
 
 @dashboard_bp.route("/offiline")
 def offiline():
-    return renderizar_lista("Offiline", listar_offline_mais_de_um_dia())
+    return renderizar_lista("Offiline", listar_offline_mais_de_um_dia(), mostrar_ultima_queda=True)
 
 
 @dashboard_bp.route("/cliente/<cliente_id>")
 def detalhe_cliente(cliente_id: str):
-    coletas = obter_historico_cliente(cliente_id, limite=None, dias=7)
-    cliente_atual = coletas[0] if coletas else None
+    login = request.args.get("login", "").strip()
+    coletas = obter_historico_cliente(cliente_id, limite=None, dias=7, login=login)
+    cliente_atual = dict(coletas[0]) if coletas else None
     coletas_meta = resumo_coletas(coletas)
     historico_conexao = []
     if cliente_atual and cliente_atual["login"]:
         try:
-            historico_conexao = IXCClient().buscar_historico_conexao(cliente_atual["login"], dias=7)
+            client = IXCClient()
+            historico_conexao = client.buscar_historico_conexao(cliente_atual["login"], dias=7)
+            if cliente_com_bloqueio(cliente_atual) and not cliente_atual.get("data_bloqueio"):
+                cliente_atual.update(
+                    client.buscar_dados_bloqueio(cliente_atual["cliente_id"], cliente_atual["status_acesso"])
+                )
         except Exception:
             logger.exception("Falha ao buscar historico Radacct do cliente %s", cliente_id)
     return render_template(
@@ -164,7 +177,7 @@ def filtrar_clientes(clientes):
     ]
 
 
-def renderizar_lista(titulo: str, clientes):
+def renderizar_lista(titulo: str, clientes, mostrar_ultima_queda: bool = False):
     clientes_filtrados = filtrar_clientes(clientes)
     clientes_pagina, paginacao = paginar_registros(clientes_filtrados)
     return render_template(
@@ -172,7 +185,15 @@ def renderizar_lista(titulo: str, clientes):
         titulo=titulo,
         clientes=clientes_pagina,
         paginacao=paginacao,
+        mostrar_ultima_queda=mostrar_ultima_queda,
     )
+
+
+def cliente_com_bloqueio(cliente: dict) -> bool:
+    return str(cliente.get("status_acesso") or "").strip().upper() in {
+        "BLOQUEIO AUTOMÁTICO",
+        "BLOQUEIO MANUAL",
+    }
 
 
 def paginar_registros(registros):

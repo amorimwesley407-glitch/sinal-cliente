@@ -89,6 +89,22 @@ class IXCClient:
         rows = self.listar_todos("radusuarios", filtros, rp=1)
         return rows[0] if rows else None
 
+    def buscar_dados_bloqueio(self, cliente_id: str, status_acesso: str) -> dict:
+        if not cliente_id:
+            return {"tipo_bloqueio": "", "data_bloqueio": ""}
+        rows = self.listar_todos(
+            "cliente_contrato",
+            {"qtype": "cliente_contrato.id_cliente", "query": cliente_id, "oper": "="},
+            rp=20,
+        )
+        for contrato in rows:
+            if status_contrato(contrato) != "ATIVO":
+                continue
+            status = status_acesso_contrato(contrato, {})
+            if status == status_acesso:
+                return dados_bloqueio_contrato(contrato, status)
+        return {"tipo_bloqueio": "", "data_bloqueio": ""}
+
     def buscar_historico_conexao(self, login: str, dias: int = 7, limite: int = 100) -> list[dict]:
         if not login:
             return []
@@ -156,6 +172,7 @@ class IXCClient:
             registro["status_onu"] = status_online(primeiro_valor(radius or {}, ["online"])) or registro["status_onu"]
             registro["status_contrato"] = status_contrato(contrato or {})
             registro["status_acesso"] = status_acesso_contrato(contrato or {}, radius or {})
+            registro.update(dados_bloqueio_contrato(contrato or {}, registro["status_acesso"]))
             if not cliente_monitoravel(registro["status_contrato"], registro["status_acesso"]):
                 ignorados += 1
                 continue
@@ -188,6 +205,8 @@ class IXCClient:
             "tempo_ligado_segundos": None,
             "ultima_desconexao": "",
             "tempo_desconectado": "",
+            "tipo_bloqueio": "",
+            "data_bloqueio": "",
             "data_hora": datetime.now().isoformat(timespec="seconds"),
         }
 
@@ -272,6 +291,23 @@ def status_acesso_contrato(contrato: dict, radius: dict) -> str:
     if ativo == "N":
         return "INATIVO"
     return status_online(primeiro_valor(radius, ["online"])) or "DESCONHECIDO"
+
+
+def dados_bloqueio_contrato(contrato: dict, status_acesso: str) -> dict:
+    status = str(status_acesso or "").strip().upper()
+    if status == "BLOQUEIO AUTOMÁTICO":
+        data_bloqueio = str(primeiro_valor(contrato, ["dt_ult_bloq_auto"]) or "")
+    elif status == "BLOQUEIO MANUAL":
+        data_bloqueio = str(primeiro_valor(contrato, ["dt_ult_bloq_manual"]) or "")
+    else:
+        return {"tipo_bloqueio": "", "data_bloqueio": ""}
+
+    if data_bloqueio in {"0000-00-00", "0000-00-00 00:00:00"}:
+        data_bloqueio = ""
+    return {
+        "tipo_bloqueio": status,
+        "data_bloqueio": data_bloqueio,
+    }
 
 
 def inteiro(valor: Any) -> int | None:
