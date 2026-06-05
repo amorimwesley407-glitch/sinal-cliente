@@ -5,7 +5,7 @@
   <div class="panel-header list-header">
     <div>
       <h2>{{ titulo }}</h2>
-      <span>{{ clientes|length }} registros encontrados</span>
+      <span>{{ paginacao.inicio }}-{{ paginacao.fim }} de {{ paginacao.total }} registros encontrados</span>
     </div>
     <form class="search-form" method="get">
       <input type="search" name="q" value="{{ request.args.get('q', '') }}" placeholder="Buscar nome, login ou contato">
@@ -13,5 +13,6 @@
     </form>
   </div>
   {% include "_tabela_clientes.html" %}
+  {% include "_paginacao.html" %}
 </section>
 {% endblock %}

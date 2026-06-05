@@ -4,6 +4,7 @@ import io
 import logging
 import re
 import unicodedata
+from datetime import datetime
 
 import pandas as pd
 from flask import Blueprint, Response, render_template, request, send_file
@@ -22,17 +23,19 @@ from database import (
 
 dashboard_bp = Blueprint("dashboard", __name__)
 logger = logging.getLogger(__name__)
+REGISTROS_POR_PAGINA = 50
 
 
 @dashboard_bp.route("/")
 @dashboard_bp.route("/dashboard")
 def dashboard():
     stats = estatisticas_dashboard()
-    clientes = listar_offline_24h()
+    clientes, paginacao = paginar_registros(listar_offline_24h(limite=None))
     return render_template(
         "dashboard.html",
         stats=stats,
         clientes=clientes,
+        paginacao=paginacao,
         top_criticos=top_criticos(),
         evolucao=serie_evolucao(),
     )
@@ -63,33 +66,34 @@ def online_status(value) -> str:
 
 @dashboard_bp.route("/clientes-criticos")
 def clientes_criticos():
-    return render_template("lista.html", titulo="Clientes Críticos", clientes=filtrar_clientes(listar_ultima_coleta("AND categoria = 'CRÍTICO'")))
+    return renderizar_lista("Clientes Críticos", listar_ultima_coleta("AND categoria = 'CRÍTICO'"))
 
 
 @dashboard_bp.route("/clientes-atencao")
 def clientes_atencao():
-    return render_template("lista.html", titulo="Clientes em Atenção", clientes=filtrar_clientes(listar_ultima_coleta("AND categoria = 'ATENÇÃO'")))
+    return renderizar_lista("Clientes em Atenção", listar_ultima_coleta("AND categoria = 'ATENÇÃO'"))
 
 
 @dashboard_bp.route("/clientes-bons-excelentes")
 def clientes_bons_excelentes():
-    return render_template("lista.html", titulo="Clientes Bons e Excelentes", clientes=filtrar_clientes(listar_bons_excelentes()))
+    return renderizar_lista("Clientes Bons e Excelentes", listar_bons_excelentes())
 
 
 @dashboard_bp.route("/clientes-bons")
 def clientes_bons():
-    return render_template("lista.html", titulo="Clientes Bons", clientes=filtrar_clientes(listar_ultima_coleta("AND categoria = 'BOM'")))
+    return renderizar_lista("Clientes Bons", listar_ultima_coleta("AND categoria = 'BOM'"))
 
 
 @dashboard_bp.route("/clientes-excelentes")
 def clientes_excelentes():
-    return render_template("lista.html", titulo="Clientes Excelentes", clientes=filtrar_clientes(listar_ultima_coleta("AND categoria = 'EXCELENTE'")))
+    return renderizar_lista("Clientes Excelentes", listar_ultima_coleta("AND categoria = 'EXCELENTE'"))
 
 
 @dashboard_bp.route("/cliente/<cliente_id>")
 def detalhe_cliente(cliente_id: str):
     coletas = obter_historico_cliente(cliente_id, limite=None, dias=7)
     cliente_atual = coletas[0] if coletas else None
+    coletas_meta = resumo_coletas(coletas)
     historico_conexao = []
     if cliente_atual and cliente_atual["login"]:
         try:
@@ -100,6 +104,7 @@ def detalhe_cliente(cliente_id: str):
         "cliente.html",
         historico=historico_conexao,
         coletas=coletas,
+        coletas_meta=coletas_meta,
         cliente=cliente_atual,
         cliente_id=cliente_id,
     )
@@ -151,3 +156,57 @@ def filtrar_clientes(clientes):
         or termo in str(cliente["login"]).lower()
         or termo in str(cliente["contato"] or "").lower()
     ]
+
+
+def renderizar_lista(titulo: str, clientes):
+    clientes_filtrados = filtrar_clientes(clientes)
+    clientes_pagina, paginacao = paginar_registros(clientes_filtrados)
+    return render_template(
+        "lista.html",
+        titulo=titulo,
+        clientes=clientes_pagina,
+        paginacao=paginacao,
+    )
+
+
+def paginar_registros(registros):
+    total = len(registros)
+    total_paginas = max(1, (total + REGISTROS_POR_PAGINA - 1) // REGISTROS_POR_PAGINA)
+    pagina = pagina_atual(total_paginas)
+    inicio = (pagina - 1) * REGISTROS_POR_PAGINA
+    fim = inicio + REGISTROS_POR_PAGINA
+    return registros[inicio:fim], {
+        "pagina": pagina,
+        "por_pagina": REGISTROS_POR_PAGINA,
+        "total": total,
+        "total_paginas": total_paginas,
+        "inicio": inicio + 1 if total else 0,
+        "fim": min(fim, total),
+    }
+
+
+def pagina_atual(total_paginas: int) -> int:
+    try:
+        pagina = int(request.args.get("page", "1"))
+    except ValueError:
+        pagina = 1
+    return min(max(pagina, 1), total_paginas)
+
+
+def resumo_coletas(coletas) -> dict:
+    datas = [parse_data_coleta(row["data_hora"]) for row in coletas if row["data_hora"]]
+    datas = [data for data in datas if data]
+    if not datas:
+        return {"total": 0, "inicio": "", "fim": ""}
+    return {
+        "total": len(coletas),
+        "inicio": min(datas).strftime("%d/%m/%Y %H:%M"),
+        "fim": max(datas).strftime("%d/%m/%Y %H:%M"),
+    }
+
+
+def parse_data_coleta(valor: str) -> datetime | None:
+    try:
+        return datetime.fromisoformat(str(valor))
+    except ValueError:
+        return None

@@ -270,6 +270,12 @@ a {
   font-weight: 700;
 }
 
+.reason-cell {
+  color: var(--muted);
+  max-width: 240px;
+  white-space: normal;
+}
+
 .mono {
   color: #233142;
   font-family: "Cascadia Mono", Consolas, monospace;
@@ -373,6 +379,42 @@ a {
   border-radius: 8px;
   color: #fff;
   padding: 9px 14px;
+}
+
+.pagination-bar {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 12px 16px;
+}
+
+.pagination-bar a,
+.pagination-bar .disabled {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.pagination-bar a {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 700;
+}
+
+.pagination-bar a:hover {
+  background: var(--surface-2);
+}
+
+.pagination-bar .disabled {
+  color: var(--muted);
+  opacity: .55;
+}
+
+.pagination-bar > span:not(.disabled) {
+  color: var(--muted);
+  font-size: .86rem;
 }
 
 .client-hero {

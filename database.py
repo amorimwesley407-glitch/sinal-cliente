@@ -154,7 +154,7 @@ def listar_ultima_coleta(where: str = "", params: tuple = ()) -> list[sqlite3.Ro
         return conn.execute(query, params).fetchall()
 
 
-def listar_offline_24h(limite: int = 30) -> list[dict]:
+def listar_offline_24h(limite: int | None = 30) -> list[dict]:
     inicio = (datetime.now() - timedelta(hours=24)).isoformat(timespec="seconds")
     offline = ("offline", "off-line", "down", "desconectada", "desconectado", "sem sinal")
     placeholders = ", ".join("?" for _ in offline)
@@ -173,10 +173,11 @@ def listar_offline_24h(limite: int = 30) -> list[dict]:
         WHERE rn = 1
           AND LOWER(TRIM(COALESCE(status_onu, ''))) IN ({placeholders})
         ORDER BY data_hora DESC, score ASC, rx ASC
-        LIMIT ?
+        { "LIMIT ?" if limite else "" }
     """
     with get_connection() as conn:
-        rows = [dict(row) for row in conn.execute(query, (inicio, *offline, limite)).fetchall()]
+        params = (inicio, *offline, limite) if limite else (inicio, *offline)
+        rows = [dict(row) for row in conn.execute(query, params).fetchall()]
         sinais_validos = _ultimos_sinais_validos(conn, rows)
         for row in rows:
             if _sinal_valido(row.get("rx")) and _sinal_valido(row.get("tx")):

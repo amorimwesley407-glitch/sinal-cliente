@@ -11,6 +11,7 @@
         <th>Online</th>
         <th>Contrato</th>
         <th>Acesso</th>
+        <th>Motivo</th>
         <th>Última coleta</th>
       </tr>
     </thead>
@@ -26,10 +27,11 @@
         <td><span class="badge status-{{ cliente['status_onu']|online_status }}">{{ cliente["status_onu"]|online_label }}</span></td>
         <td><span class="badge status-{{ cliente['status_contrato']|status_class }}">{{ cliente["status_contrato"] or "-" }}</span></td>
         <td><span class="badge status-{{ cliente['status_acesso']|status_class }}">{{ cliente["status_acesso"] or "-" }}</span></td>
+        <td class="reason-cell">{{ cliente["motivo_desconexao"] or cliente["causa_ultima_queda"] or "-" }}</td>
         <td class="mono">{{ cliente["data_hora"] }}</td>
       </tr>
       {% else %}
-      <tr><td colspan="10" class="text-center text-muted py-4">Nenhum registro encontrado.</td></tr>
+      <tr><td colspan="11" class="text-center text-muted py-4">Nenhum registro encontrado.</td></tr>
       {% endfor %}
     </tbody>
   </table>
