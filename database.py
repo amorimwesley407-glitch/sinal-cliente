@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 
 
 DB_PATH = os.getenv("DATABASE_PATH", "sinal_clientes.db")
+STATUS_NAO_MONITORAVEIS = ("INATIVO", "DESATIVADO")
 
 
 @contextmanager
@@ -147,11 +148,14 @@ def listar_ultima_coleta(where: str = "", params: tuple = ()) -> list[sqlite3.Ro
             FROM historico_sinal
             WHERE cliente_id IS NOT NULL AND cliente_id != ''
         )
-        SELECT * FROM ultimos WHERE rn = 1 {where}
+        SELECT * FROM ultimos
+        WHERE rn = 1
+          AND {filtro_monitoraveis_sql()}
+          {where}
         ORDER BY score ASC, rx ASC
     """
     with get_connection() as conn:
-        return conn.execute(query, params).fetchall()
+        return conn.execute(query, (*STATUS_NAO_MONITORAVEIS, *STATUS_NAO_MONITORAVEIS, *params)).fetchall()
 
 
 def listar_offline_24h(limite: int | None = 30) -> list[dict]:
@@ -171,12 +175,24 @@ def listar_offline_24h(limite: int | None = 30) -> list[dict]:
         )
         SELECT * FROM ultimos
         WHERE rn = 1
+          AND {filtro_monitoraveis_sql()}
           AND LOWER(TRIM(COALESCE(status_onu, ''))) IN ({placeholders})
         ORDER BY data_hora DESC, score ASC, rx ASC
         { "LIMIT ?" if limite else "" }
     """
     with get_connection() as conn:
-        params = (inicio, *offline, limite) if limite else (inicio, *offline)
+        params = (
+            inicio,
+            *STATUS_NAO_MONITORAVEIS,
+            *STATUS_NAO_MONITORAVEIS,
+            *offline,
+            limite,
+        ) if limite else (
+            inicio,
+            *STATUS_NAO_MONITORAVEIS,
+            *STATUS_NAO_MONITORAVEIS,
+            *offline,
+        )
         rows = [dict(row) for row in conn.execute(query, params).fetchall()]
         sinais_validos = _ultimos_sinais_validos(conn, rows)
         for row in rows:
@@ -201,6 +217,13 @@ def listar_offline_24h(limite: int | None = 30) -> list[dict]:
 
 def _sinal_valido(valor) -> bool:
     return valor not in (None, 0, 0.0)
+
+
+def filtro_monitoraveis_sql() -> str:
+    return """
+        UPPER(TRIM(COALESCE(status_contrato, ''))) NOT IN (?, ?)
+        AND UPPER(TRIM(COALESCE(status_acesso, ''))) NOT IN (?, ?)
+    """
 
 
 def _chave_sinal(row: dict) -> str:

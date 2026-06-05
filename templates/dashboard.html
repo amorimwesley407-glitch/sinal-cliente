@@ -37,7 +37,7 @@
     <div class="panel-header">
       <h2>Top 20 críticos</h2>
     </div>
-    <div class="chart-box">
+    <div class="chart-box critical-chart-box">
       <canvas id="criticosChart"></canvas>
     </div>
   </div>
@@ -58,6 +58,7 @@
 const categorias = {{ stats.categorias|tojson }};
 const criticos = {{ top_criticos|map(attribute='nome')|list|tojson }};
 const criticosRx = {{ top_criticos|map(attribute='rx')|list|tojson }};
+const criticosLogin = {{ top_criticos|map(attribute='login')|list|tojson }};
 </script>
 <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
 {% endblock %}

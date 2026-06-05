@@ -12,6 +12,7 @@ from classificador import normalizar_float
 
 
 logger = logging.getLogger(__name__)
+STATUS_NAO_MONITORAVEIS = {"INATIVO", "DESATIVADO"}
 
 
 class IXCClient:
@@ -119,17 +120,29 @@ class IXCClient:
         cliente_por_id = {str(row.get("id")): row for row in clientes if row.get("id")}
         logger.info("IXC: %s clientes carregados.", len(cliente_por_id))
 
-        contratos = self.listar_todos("cliente_contrato")
-        contrato_por_id = {str(row.get("id")): row for row in contratos if row.get("id")}
-        logger.info("IXC: %s contratos carregados.", len(contrato_por_id))
+        contratos = self.listar_todos(
+            "cliente_contrato",
+            {"qtype": "cliente_contrato.status", "query": "A", "oper": "="},
+        )
+        contrato_por_id = {
+            str(row.get("id")): row
+            for row in contratos
+            if row.get("id") and contrato_monitoravel(row)
+        }
+        logger.info("IXC: %s contratos ativos/monitoraveis carregados.", len(contrato_por_id))
 
         caixas = self.listar_todos("rad_caixa_ftth")
         caixa_por_id = {str(row.get("id")): row for row in caixas if row.get("id")}
         logger.info("IXC: %s caixas FTTH carregadas.", len(caixa_por_id))
 
         coleta = []
+        ignorados = 0
         for fibra in fibras:
             registro = self._normalizar_fibra(fibra)
+            if registro.get("contrato_id") and registro["contrato_id"] not in contrato_por_id:
+                ignorados += 1
+                continue
+
             radius = rad_por_id.get(registro.get("radusuario_id", ""))
             cliente_id = str(primeiro_valor(radius or {}, ["id_cliente"]) or registro["cliente_id"])
             cliente = cliente_por_id.get(cliente_id)
@@ -143,9 +156,14 @@ class IXCClient:
             registro["status_onu"] = status_online(primeiro_valor(radius or {}, ["online"])) or registro["status_onu"]
             registro["status_contrato"] = status_contrato(contrato or {})
             registro["status_acesso"] = status_acesso_contrato(contrato or {}, radius or {})
+            if not cliente_monitoravel(registro["status_contrato"], registro["status_acesso"]):
+                ignorados += 1
+                continue
+
             registro["caixa"] = primeiro_valor(caixa or {}, ["descricao", "nome"]) or registro["caixa"]
             registro.update(dados_conexao(radius or {}))
             coleta.append(registro)
+        logger.info("IXC: %s registros ignorados por status inativo/desativado.", ignorados)
         return coleta
 
     def _normalizar_fibra(self, fibra: dict) -> dict:
@@ -190,6 +208,16 @@ def contato_cliente(cliente: dict) -> str:
         if valor and str(valor).strip() not in valores:
             valores.append(str(valor).strip())
     return " / ".join(valores)
+
+
+def contrato_monitoravel(contrato: dict) -> bool:
+    return cliente_monitoravel(status_contrato(contrato), status_acesso_contrato(contrato, {}))
+
+
+def cliente_monitoravel(status_do_contrato: str, status_do_acesso: str) -> bool:
+    contrato = str(status_do_contrato or "").strip().upper()
+    acesso = str(status_do_acesso or "").strip().upper()
+    return contrato not in STATUS_NAO_MONITORAVEIS and acesso not in STATUS_NAO_MONITORAVEIS
 
 
 def dados_conexao(radius: dict) -> dict:

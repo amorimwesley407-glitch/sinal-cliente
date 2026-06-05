@@ -235,6 +235,10 @@ a {
   padding: 14px;
 }
 
+.critical-chart-box {
+  height: 420px;
+}
+
 .table-responsive {
   max-height: 68vh;
 }
