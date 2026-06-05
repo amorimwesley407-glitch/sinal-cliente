@@ -38,14 +38,49 @@
   <div class="detail-card">
     <span>Última desconexão</span>
     <strong>{{ cliente["ultima_desconexao"] or "-" }}</strong>
-    <small>fora por {{ cliente["tempo_desconectado"] or "-" }}</small>
+    <small>{{ cliente["motivo_desconexao"] or cliente["causa_ultima_queda"] or "sem motivo informado" }}</small>
+  </div>
+</section>
+
+<section class="panel mt-3">
+  <div class="panel-header">
+    <h2>Histórico de conexão</h2>
+    <span>tempo ligado, quedas e reconexões</span>
+  </div>
+  <div class="table-responsive connection-history">
+    <table class="table table-sm align-middle">
+      <thead>
+        <tr>
+          <th>Coleta</th>
+          <th>Status</th>
+          <th>Tempo ligado</th>
+          <th>Última desconexão</th>
+          <th>Tempo desconectado</th>
+          <th>Motivo</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in historico %}
+        <tr>
+          <td class="mono">{{ item["data_hora"] }}</td>
+          <td class="mono">{{ item["status_onu"] or "-" }}</td>
+          <td class="mono">{{ item["tempo_ligado"] or "-" }}</td>
+          <td class="mono">{{ item["ultima_desconexao"] or "-" }}</td>
+          <td class="mono">{{ item["tempo_desconectado"] or "-" }}</td>
+          <td>{{ item["motivo_desconexao"] or item["causa_ultima_queda"] or "-" }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted py-4">Nenhum histórico de conexão encontrado.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </section>
 
 <section class="panel mt-3">
   <div class="panel-header">
     <h2>Eventos e coletas</h2>
-    <span>Causa última queda: {{ cliente["causa_ultima_queda"] or "-" }}</span>
+    <span>PON {{ cliente["pon"] or "-" }} / {{ cliente["caixa"] or "-" }}</span>
   </div>
   {% set clientes = historico %}
   {% include "_tabela_clientes.html" %}

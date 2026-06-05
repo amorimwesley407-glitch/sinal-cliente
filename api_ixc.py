@@ -100,18 +100,24 @@ class IXCClient:
         cliente_por_id = {str(row.get("id")): row for row in clientes if row.get("id")}
         logger.info("IXC: %s clientes carregados.", len(cliente_por_id))
 
+        caixas = self.listar_todos("rad_caixa_ftth")
+        caixa_por_id = {str(row.get("id")): row for row in caixas if row.get("id")}
+        logger.info("IXC: %s caixas FTTH carregadas.", len(caixa_por_id))
+
         coleta = []
         for fibra in fibras:
             registro = self._normalizar_fibra(fibra)
             radius = rad_por_id.get(registro.get("radusuario_id", ""))
             cliente_id = str(primeiro_valor(radius or {}, ["id_cliente"]) or registro["cliente_id"])
             cliente = cliente_por_id.get(cliente_id)
+            caixa = caixa_por_id.get(registro.get("caixa_id", ""))
 
             registro["cliente_id"] = cliente_id or registro["cliente_id"]
             registro["nome"] = primeiro_valor(cliente or {}, ["razao", "nome", "fantasia"]) or registro["nome"]
             registro["contato"] = contato_cliente(cliente or {})
             registro["login"] = primeiro_valor(radius or {}, ["login", "usuario"]) or registro["login"]
             registro["status_onu"] = status_online(primeiro_valor(radius or {}, ["online"])) or registro["status_onu"]
+            registro["caixa"] = primeiro_valor(caixa or {}, ["descricao", "nome"]) or registro["caixa"]
             registro.update(dados_conexao(radius or {}))
             coleta.append(registro)
         return coleta
@@ -127,6 +133,7 @@ class IXCClient:
             "tx": normalizar_float(primeiro_valor(fibra, ["sinal_tx", "tx", "potencia_tx", "onu_tx"])),
             "status_onu": status_online(primeiro_valor(fibra, ["status_onu", "status", "online"])) or "DESCONHECIDO",
             "pon": str(primeiro_valor(fibra, ["ponid", "pon", "ponno"]) or ""),
+            "caixa_id": str(primeiro_valor(fibra, ["id_caixa_ftth", "caixa", "caixa_ftth"]) or ""),
             "caixa": str(primeiro_valor(fibra, ["id_caixa_ftth", "caixa", "caixa_ftth"]) or ""),
             "porta_caixa": str(primeiro_valor(fibra, ["porta_ftth", "porta_caixa"]) or ""),
             "causa_ultima_queda": str(primeiro_valor(fibra, ["causa_ultima_queda"]) or ""),
@@ -165,6 +172,7 @@ def dados_conexao(radius: dict) -> dict:
         "tempo_ligado_segundos": tempo_segundos,
         "ultima_desconexao": ultima_desconexao,
         "tempo_desconectado": calcular_tempo_desconectado(ultima_desconexao, ultima_conexao),
+        "motivo_desconexao": str(primeiro_valor(radius, ["motivo_desconexao"]) or ""),
     }
 
 

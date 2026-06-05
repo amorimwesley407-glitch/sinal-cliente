@@ -410,6 +410,10 @@ a {
   margin-top: 8px;
 }
 
+.connection-history {
+  max-height: 320px;
+}
+
 @media (max-width: 1000px) {
   .app-shell {
     grid-template-columns: 1fr;

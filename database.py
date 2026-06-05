@@ -45,6 +45,7 @@ def init_db() -> None:
                 porta_caixa TEXT,
                 ultima_desconexao TEXT,
                 tempo_desconectado TEXT,
+                motivo_desconexao TEXT,
                 causa_ultima_queda TEXT,
                 data_hora TEXT NOT NULL
             )
@@ -60,6 +61,7 @@ def init_db() -> None:
             "porta_caixa": "ALTER TABLE historico_sinal ADD COLUMN porta_caixa TEXT",
             "ultima_desconexao": "ALTER TABLE historico_sinal ADD COLUMN ultima_desconexao TEXT",
             "tempo_desconectado": "ALTER TABLE historico_sinal ADD COLUMN tempo_desconectado TEXT",
+            "motivo_desconexao": "ALTER TABLE historico_sinal ADD COLUMN motivo_desconexao TEXT",
             "causa_ultima_queda": "ALTER TABLE historico_sinal ADD COLUMN causa_ultima_queda TEXT",
         }
         for column, sql in migrations.items():
@@ -77,8 +79,8 @@ def salvar_coleta(registro: dict) -> None:
                 cliente_id, nome, contato, login, rx, tx, score, status, status_onu,
                 categoria, instavel, oscilacao_24h, tempo_ligado, tempo_ligado_segundos,
                 pon, caixa, porta_caixa, ultima_desconexao, tempo_desconectado,
-                causa_ultima_queda, data_hora
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                motivo_desconexao, causa_ultima_queda, data_hora
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 registro["cliente_id"],
@@ -100,6 +102,7 @@ def salvar_coleta(registro: dict) -> None:
                 registro.get("porta_caixa", ""),
                 registro.get("ultima_desconexao", ""),
                 registro.get("tempo_desconectado", ""),
+                registro.get("motivo_desconexao", ""),
                 registro.get("causa_ultima_queda", ""),
                 registro["data_hora"],
             ),
