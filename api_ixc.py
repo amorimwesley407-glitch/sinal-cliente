@@ -1,0 +1,158 @@
+from __future__ import annotations
+
+import logging
+import os
+from base64 import b64encode
+from datetime import datetime
+from typing import Any
+
+import requests
+
+from classificador import normalizar_float
+
+
+logger = logging.getLogger(__name__)
+
+
+class IXCClient:
+    def __init__(self, base_url: str | None = None, token: str | None = None, timeout: int | None = None):
+        self.base_url = (base_url or os.getenv("IXC_BASE_URL", "")).rstrip("/")
+        self.token = token or os.getenv("IXC_TOKEN", "")
+        self.timeout = timeout or int(os.getenv("IXC_TIMEOUT", "30"))
+        if not self.base_url:
+            raise ValueError("IXC_BASE_URL não configurado.")
+        if not self.token:
+            raise ValueError("IXC_TOKEN não configurado.")
+
+    @property
+    def headers(self) -> dict[str, str]:
+        token = self.token.strip()
+        if not token.lower().startswith("basic "):
+            token = "Basic " + b64encode(token.encode("utf-8")).decode("ascii")
+        return {
+            "Authorization": token,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "ixcsoft": "listar",
+        }
+
+    def listar(self, endpoint: str, filtros: dict[str, Any] | None = None, page: int = 1, rp: int = 1000) -> dict:
+        url = f"{self.base_url}/{endpoint.strip('/')}"
+        payload = {
+            "qtype": filtros.get("qtype", "") if filtros else "",
+            "query": filtros.get("query", "") if filtros else "",
+            "oper": filtros.get("oper", "=") if filtros else "=",
+            "page": str(page),
+            "rp": str(rp),
+            "sortname": filtros.get("sortname", "id") if filtros else "id",
+            "sortorder": filtros.get("sortorder", "asc") if filtros else "asc",
+        }
+        try:
+            response = requests.post(url, json=payload, headers=self.headers, timeout=self.timeout)
+            response.raise_for_status()
+            return response.json()
+        except requests.RequestException as exc:
+            logger.exception("Erro ao consultar endpoint IXC %s", endpoint)
+            raise RuntimeError(f"Falha ao consultar IXC em {endpoint}: {exc}") from exc
+        except ValueError as exc:
+            raise RuntimeError(f"Resposta inválida do IXC em {endpoint}.") from exc
+
+    def listar_todos(self, endpoint: str, filtros: dict[str, Any] | None = None, rp: int = 1000) -> list[dict]:
+        page = 1
+        registros: list[dict] = []
+        while True:
+            dados = self.listar(endpoint, filtros=filtros, page=page, rp=rp)
+            rows = dados.get("registros") or dados.get("rows") or []
+            if isinstance(rows, dict):
+                rows = list(rows.values())
+            registros.extend(rows)
+            total = int(dados.get("total", len(registros)) or 0)
+            if not rows or len(registros) >= total:
+                break
+            page += 1
+        return registros
+
+    def buscar_cliente(self, cliente_id: str) -> dict | None:
+        if not cliente_id:
+            return None
+        rows = self.listar_todos("cliente", {"qtype": "cliente.id", "query": cliente_id, "oper": "="}, rp=1)
+        return rows[0] if rows else None
+
+    def buscar_usuario_radius(self, login: str | None = None, id_radusuario: str | None = None) -> dict | None:
+        if id_radusuario:
+            filtros = {"qtype": "radusuarios.id", "query": id_radusuario, "oper": "="}
+        elif login:
+            filtros = {"qtype": "radusuarios.login", "query": login, "oper": "="}
+        else:
+            return None
+        rows = self.listar_todos("radusuarios", filtros, rp=1)
+        return rows[0] if rows else None
+
+    def coletar_sinais(self) -> list[dict]:
+        fibras = self.listar_todos("radpop_radio_cliente_fibra")
+        logger.info("IXC: %s registros de fibra carregados.", len(fibras))
+
+        radusuarios = self.listar_todos("radusuarios")
+        rad_por_id = {str(row.get("id")): row for row in radusuarios if row.get("id")}
+        logger.info("IXC: %s radusuarios carregados.", len(rad_por_id))
+
+        clientes = self.listar_todos("cliente")
+        cliente_por_id = {str(row.get("id")): row for row in clientes if row.get("id")}
+        logger.info("IXC: %s clientes carregados.", len(cliente_por_id))
+
+        coleta = []
+        for fibra in fibras:
+            registro = self._normalizar_fibra(fibra)
+            radius = rad_por_id.get(registro.get("radusuario_id", ""))
+            cliente_id = str(primeiro_valor(radius or {}, ["id_cliente"]) or registro["cliente_id"])
+            cliente = cliente_por_id.get(cliente_id)
+
+            registro["cliente_id"] = cliente_id or registro["cliente_id"]
+            registro["nome"] = primeiro_valor(cliente or {}, ["razao", "nome", "fantasia"]) or registro["nome"]
+            registro["contato"] = contato_cliente(cliente or {})
+            registro["login"] = primeiro_valor(radius or {}, ["login", "usuario"]) or registro["login"]
+            registro["status_onu"] = status_online(primeiro_valor(radius or {}, ["online"])) or registro["status_onu"]
+            coleta.append(registro)
+        return coleta
+
+    def _normalizar_fibra(self, fibra: dict) -> dict:
+        return {
+            "cliente_id": str(primeiro_valor(fibra, ["id_cliente", "cliente_id", "idcliente", "id_contrato", "id"]) or ""),
+            "nome": str(primeiro_valor(fibra, ["cliente", "nome", "razao"]) or "Cliente sem nome"),
+            "contato": "",
+            "login": str(primeiro_valor(fibra, ["login", "login_pppoe", "pppoe"]) or ""),
+            "radusuario_id": str(primeiro_valor(fibra, ["id_radusuario", "radusuario_id", "id_login"]) or ""),
+            "rx": normalizar_float(primeiro_valor(fibra, ["sinal_rx", "rx", "potencia_rx", "onu_rx"])),
+            "tx": normalizar_float(primeiro_valor(fibra, ["sinal_tx", "tx", "potencia_tx", "onu_tx"])),
+            "status_onu": status_online(primeiro_valor(fibra, ["status_onu", "status", "online"])) or "DESCONHECIDO",
+            "data_hora": datetime.now().isoformat(timespec="seconds"),
+        }
+
+
+def primeiro_valor(dados: dict, chaves: list[str]) -> Any:
+    normalizado = {str(k).lower(): v for k, v in dados.items()}
+    for chave in chaves:
+        valor = normalizado.get(chave.lower())
+        if valor not in (None, ""):
+            return valor
+    return None
+
+
+def contato_cliente(cliente: dict) -> str:
+    valores = []
+    for campo in ["whatsapp", "telefone_celular", "fone", "telefone_comercial", "contato"]:
+        valor = primeiro_valor(cliente, [campo])
+        if valor and str(valor).strip() not in valores:
+            valores.append(str(valor).strip())
+    return " / ".join(valores)
+
+
+def status_online(valor: Any) -> str | None:
+    if valor in (None, ""):
+        return None
+    texto = str(valor).strip().lower()
+    if texto in {"s", "sim", "online", "on", "1", "true"}:
+        return "ONLINE"
+    if texto in {"n", "nao", "não", "offline", "off", "0", "false"}:
+        return "OFFLINE"
+    return str(valor).strip().upper()

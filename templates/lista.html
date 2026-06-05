@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block page_title %}{{ titulo }}{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-header list-header">
+    <div>
+      <h2>{{ titulo }}</h2>
+      <span>{{ clientes|length }} registros encontrados</span>
+    </div>
+    <form class="search-form" method="get">
+      <input type="search" name="q" value="{{ request.args.get('q', '') }}" placeholder="Buscar nome, login ou contato">
+      <button type="submit">Buscar</button>
+    </form>
+  </div>
+  {% include "_tabela_clientes.html" %}
+</section>
+{% endblock %}

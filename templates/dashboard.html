@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block page_title %}Dashboard NOC{% endblock %}
+{% block content %}
+<section class="metric-grid">
+  <a class="metric danger" href="{{ url_for('dashboard.clientes_criticos') }}">
+    <span>Críticos</span>
+    <strong>{{ stats.criticos }}</strong>
+    <small>prioridade imediata</small>
+  </a>
+  <a class="metric warning" href="{{ url_for('dashboard.clientes_atencao') }}">
+    <span>Atenção</span>
+    <strong>{{ stats.atencao }}</strong>
+    <small>acompanhar tendência</small>
+  </a>
+  <a class="metric good" href="{{ url_for('dashboard.clientes_bons') }}">
+    <span>Bom</span>
+    <strong>{{ stats.bons }}</strong>
+    <small>operação normal</small>
+  </a>
+  <a class="metric excellent" href="{{ url_for('dashboard.clientes_excelentes') }}">
+    <span>Excelente</span>
+    <strong>{{ stats.excelentes }}</strong>
+    <small>sinal ideal</small>
+  </a>
+</section>
+
+<section class="dashboard-grid">
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Distribuição por categoria</h2>
+    </div>
+    <div class="chart-box">
+      <canvas id="categoriaChart"></canvas>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Top 20 críticos</h2>
+    </div>
+    <div class="chart-box">
+      <canvas id="criticosChart"></canvas>
+    </div>
+  </div>
+</section>
+
+<section class="panel mt-3">
+  <div class="panel-header">
+    <h2>Fila operacional</h2>
+    <span>{{ stats.total }} clientes monitorados</span>
+  </div>
+  {% include "_tabela_clientes.html" %}
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const categorias = {{ stats.categorias|tojson }};
+const criticos = {{ top_criticos|map(attribute='nome')|list|tojson }};
+const criticosRx = {{ top_criticos|map(attribute='rx')|list|tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+{% endblock %}

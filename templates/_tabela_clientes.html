@@ -1,0 +1,32 @@
+<div class="table-responsive">
+  <table class="table table-sm align-middle">
+    <thead>
+      <tr>
+        <th>Cliente</th>
+        <th>Contato</th>
+        <th>PPPoE</th>
+        <th>RX</th>
+        <th>TX</th>
+        <th>Categoria</th>
+        <th>ONU</th>
+        <th>Última coleta</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for cliente in clientes %}
+      <tr>
+        <td><a class="client-link" href="{{ url_for('dashboard.detalhe_cliente', cliente_id=cliente['cliente_id']) }}">{{ cliente["nome"] }}</a></td>
+        <td>{{ cliente["contato"] or "-" }}</td>
+        <td class="mono">{{ cliente["login"] or "-" }}</td>
+        <td class="mono">{{ "%.2f"|format(cliente["rx"]) if cliente["rx"] is not none else "-" }}</td>
+        <td class="mono">{{ "%.2f"|format(cliente["tx"]) if cliente["tx"] is not none else "-" }}</td>
+        <td><span class="badge status-{{ cliente['categoria']|lower|replace('í','i')|replace('á','a')|replace('ç','c')|replace('ã','a')|replace(' ','-') }}">{{ cliente["categoria"] }}</span></td>
+        <td class="mono">{{ cliente["status_onu"] or "-" }}</td>
+        <td class="mono">{{ cliente["data_hora"] }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="8" class="text-center text-muted py-4">Nenhum registro encontrado.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

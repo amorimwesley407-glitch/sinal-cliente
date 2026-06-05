@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block page_title %}Histórico do cliente{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-header">
+    <h2>Cliente {{ cliente_id }}</h2>
+    <span>últimas coletas</span>
+  </div>
+  {% set clientes = historico %}
+  {% include "_tabela_clientes.html" %}
+</section>
+{% endblock %}
