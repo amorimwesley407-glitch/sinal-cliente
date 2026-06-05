@@ -202,7 +202,7 @@ def status_contrato(contrato: dict) -> str:
 def status_acesso_contrato(contrato: dict, radius: dict) -> str:
     status = str(primeiro_valor(contrato, ["status_internet"]) or "").strip().upper()
     mapa = {
-        "A": "LIBERADO",
+        "A": "ATIVO",
         "AA": "AVISO DE ATRASO",
         "CA": "BLOQUEIO AUTOMÁTICO",
         "CM": "BLOQUEIO MANUAL",
