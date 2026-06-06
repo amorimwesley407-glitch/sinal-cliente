@@ -9,7 +9,7 @@ from flask import Flask
 from api_ixc import IXCClient
 from classificador import classificar_rx, detectar_instabilidade, score_conexao
 from dashboard import dashboard_bp
-from database import init_db, salvar_coleta, salvar_consumo_banda_cache, ultimos_rx_24h
+from database import init_db, listar_ultima_coleta, salvar_coleta, salvar_consumo_banda_cache, ultimos_rx_24h
 
 
 load_dotenv()
@@ -77,6 +77,22 @@ def atualizar_cache_consumo_banda(client: IXCClient, clientes: list[dict]) -> No
         logger.exception("Falha ao atualizar cache de consumo de banda.")
 
 
+def atualizar_consumo_por_radacct() -> dict[str, list[dict]]:
+    init_db()
+    client = IXCClient()
+    clientes = [dict(row) for row in listar_ultima_coleta()]
+    periodo_dias = int(os.getenv("IXC_CONSUMO_PERIODO_DIAS", "30"))
+    limite = int(os.getenv("IXC_CONSUMO_RANK_LIMITE", "20"))
+    ranking = client.buscar_top_consumo_banda(clientes, dias=periodo_dias, limite=limite)
+    salvar_consumo_banda_cache(ranking, periodo_dias)
+    logger.info(
+        "Cache de consumo acumulado atualizado: %s download / %s upload.",
+        len(ranking.get("download", [])),
+        len(ranking.get("upload", [])),
+    )
+    return ranking
+
+
 def gerar_alertas(registros: list[dict]) -> list[str]:
     alertas = []
     for item in registros:
@@ -98,6 +114,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Monitoramento preventivo de clientes IXC Soft")
     parser.add_argument("--coletar", action="store_true", help="Executa uma coleta na API IXC e salva no SQLite")
+    parser.add_argument("--atualizar-consumo", action="store_true", help="Atualiza apenas o cache de consumo acumulado")
     parser.add_argument("--host", default="0.0.0.0", help="Host do servidor Flask")
     parser.add_argument("--port", default=5000, type=int, help="Porta do servidor Flask")
     args = parser.parse_args()
@@ -106,5 +123,7 @@ if __name__ == "__main__":
         alertas = gerar_alertas(executar_coleta())
         for alerta in alertas:
             logger.warning(alerta)
+    elif args.atualizar_consumo:
+        atualizar_consumo_por_radacct()
     else:
         create_app().run(host=args.host, port=args.port, debug=True)

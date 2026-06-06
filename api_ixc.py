@@ -177,11 +177,15 @@ class IXCClient:
             return {"download": [], "upload": []}
 
         inicio_periodo = datetime.now() - timedelta(days=dias)
+        inicio_query = inicio_periodo.strftime("%Y-%m-%d %H:%M:%S")
         consumo: dict[str, dict] = {}
         for page in range(1, max_paginas + 1):
             dados = self.listar(
                 "radacct",
                 filtros={
+                    "qtype": "radacct.acctstarttime",
+                    "query": inicio_query,
+                    "oper": ">=",
                     "sortname": "acctstarttime",
                     "sortorder": "desc",
                 },
@@ -221,6 +225,8 @@ class IXCClient:
                 item["download_bytes"] += sessao.get("download_bytes") or 0
 
             total = int(dados.get("total", 0) or 0)
+            if page == 1 or page % 10 == 0:
+                logger.info("IXC: consumo radacct pagina %s/%s processada.", page, max(1, (total + sessoes_por_pagina - 1) // sessoes_por_pagina))
             if menor_inicio and menor_inicio < inicio_periodo:
                 break
             if page * sessoes_por_pagina >= total:
@@ -229,6 +235,11 @@ class IXCClient:
         registros = list(consumo.values())
         if not registros:
             registros = self._buscar_consumo_por_cliente(clientes, dias=dias)
+        else:
+            candidatos = top_candidatos_consumo(registros, limite=max(limite * 3, 30))
+            registros_precisos = self._buscar_consumo_por_cliente(candidatos, dias=dias, max_clientes=len(candidatos))
+            if registros_precisos:
+                registros = registros_precisos
         for registro in registros:
             registro["upload"] = formatar_bytes(registro["upload_bytes"])
             registro["download"] = formatar_bytes(registro["download_bytes"])
@@ -237,8 +248,13 @@ class IXCClient:
             "upload": sorted(registros, key=lambda row: row["upload_bytes"], reverse=True)[:limite],
         }
 
-    def _buscar_consumo_por_cliente(self, clientes: list[dict], dias: int) -> list[dict]:
-        max_clientes = int(os.getenv("IXC_CONSUMO_CLIENTES_LIMITE", "300"))
+    def _buscar_consumo_por_cliente(
+        self,
+        clientes: list[dict],
+        dias: int,
+        max_clientes: int | None = None,
+    ) -> list[dict]:
+        max_clientes = max_clientes or int(os.getenv("IXC_CONSUMO_CLIENTES_LIMITE", "300"))
         registros = []
         for cliente in clientes[:max_clientes]:
             login = str(cliente.get("login") or "").strip()
@@ -356,6 +372,17 @@ def primeiro_valor(dados: dict, chaves: list[str]) -> Any:
     return None
 
 
+def top_candidatos_consumo(registros: list[dict], limite: int) -> list[dict]:
+    candidatos = {}
+    for chave in ("download_bytes", "upload_bytes"):
+        ordenados = sorted(registros, key=lambda row: row.get(chave) or 0, reverse=True)[:limite]
+        for row in ordenados:
+            login = str(row.get("login") or "").strip()
+            if login:
+                candidatos[login] = row
+    return list(candidatos.values())
+
+
 def normalizar_historico_potenciacao(row: dict) -> dict:
     return {
         "data_sinal": str(primeiro_valor(row, ["data_sinal"]) or ""),
@@ -392,11 +419,11 @@ def dados_conexao(radius: dict) -> dict:
     ultima_desconexao = str(primeiro_valor(radius, ["ultima_conexao_final"]) or "")
     ultima_conexao = str(primeiro_valor(radius, ["ultima_conexao_inicial"]) or "")
     upload_bytes = bytes_radius(
-        primeiro_valor(radius, ["acctinputoctets", "acctinputoctet", "inputoctets", "upload_bytes"]),
+        primeiro_valor(radius, ["upload_atual", "acctinputoctets", "acctinputoctet", "inputoctets", "upload_bytes"]),
         primeiro_valor(radius, ["acctinputgigawords", "inputgigawords", "upload_gigawords"]),
     )
     download_bytes = bytes_radius(
-        primeiro_valor(radius, ["acctoutputoctets", "acctoutputoctet", "outputoctets", "download_bytes"]),
+        primeiro_valor(radius, ["download_atual", "acctoutputoctets", "acctoutputoctet", "outputoctets", "download_bytes"]),
         primeiro_valor(radius, ["acctoutputgigawords", "outputgigawords", "download_gigawords"]),
     )
 
