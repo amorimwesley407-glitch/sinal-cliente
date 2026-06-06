@@ -382,6 +382,30 @@ def formatar_duracao(segundos: int | None) -> str:
     return " ".join(partes[:3])
 
 
+def bytes_radius(octetos: Any, gigawords: Any = None) -> int | None:
+    base = inteiro(octetos)
+    extra = inteiro(gigawords) or 0
+    if base is None and not extra:
+        return None
+    return (base or 0) + (extra * 4294967296)
+
+
+def formatar_bytes(total: int | None) -> str:
+    if total is None or total < 0:
+        return ""
+    unidades = ["B", "KB", "MB", "GB", "TB", "PB"]
+    valor = float(total)
+    indice = 0
+    while valor >= 1024 and indice < len(unidades) - 1:
+        valor /= 1024
+        indice += 1
+    if indice == 0:
+        return f"{int(valor)} {unidades[indice]}"
+    if valor >= 100:
+        return f"{valor:.0f} {unidades[indice]}"
+    return f"{valor:.1f} {unidades[indice]}"
+
+
 def parse_ixc_datetime(valor: str) -> datetime | None:
     if not valor:
         return None
@@ -428,6 +452,14 @@ def normalizar_sessao_radius(row: dict) -> dict:
     inicio = parse_ixc_datetime(str(primeiro_valor(row, ["acctstarttime"]) or ""))
     fim = parse_ixc_datetime(str(primeiro_valor(row, ["acctstoptime"]) or ""))
     tempo_segundos = inteiro(primeiro_valor(row, ["acctsessiontime"]))
+    upload = bytes_radius(
+        primeiro_valor(row, ["acctinputoctets", "acctinputoctet", "inputoctets"]),
+        primeiro_valor(row, ["acctinputgigawords", "inputgigawords"]),
+    )
+    download = bytes_radius(
+        primeiro_valor(row, ["acctoutputoctets", "acctoutputoctet", "outputoctets"]),
+        primeiro_valor(row, ["acctoutputgigawords", "outputgigawords"]),
+    )
     return {
         "inicio_dt": inicio,
         "fim_dt": fim,
@@ -435,6 +467,8 @@ def normalizar_sessao_radius(row: dict) -> dict:
         "fim": formatar_data_br(fim),
         "tempo_ligado": formatar_duracao(tempo_segundos),
         "tempo_desconectado": "",
+        "upload": formatar_bytes(upload),
+        "download": formatar_bytes(download),
         "motivo": str(primeiro_valor(row, ["acctterminatecause"]) or ""),
         "ip": str(primeiro_valor(row, ["framedipaddress"]) or ""),
         "mac": str(primeiro_valor(row, ["callingstationid"]) or ""),

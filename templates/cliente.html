@@ -79,6 +79,8 @@
           <th>Fim</th>
           <th>Tempo ligado</th>
           <th>Tempo desconectado</th>
+          <th>Upload</th>
+          <th>Download</th>
           <th>Motivo</th>
           <th>IP</th>
           <th>MAC</th>
@@ -91,26 +93,20 @@
           <td class="mono">{{ item["fim"] or "conectado" }}</td>
           <td class="mono">{{ item["tempo_ligado"] or "-" }}</td>
           <td class="mono">{{ item["tempo_desconectado"] or "-" }}</td>
+          <td class="mono">{{ item["upload"] or "-" }}</td>
+          <td class="mono">{{ item["download"] or "-" }}</td>
           <td>{{ item["motivo"] or "-" }}</td>
           <td class="mono">{{ item["ip"] or "-" }}</td>
           <td class="mono">{{ item["mac"] or "-" }}</td>
         </tr>
         {% else %}
-        <tr><td colspan="7" class="text-center text-muted py-4">Nenhum histórico de conexão encontrado.</td></tr>
+        <tr><td colspan="9" class="text-center text-muted py-4">Nenhum histórico de conexão encontrado.</td></tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 </section>
 
-<section class="panel mt-3">
-  <div class="panel-header">
-    <h2>Eventos e coletas</h2>
-    <span>{{ coletas_meta.total }} coletas nos últimos 7 dias{% if coletas_meta.inicio %} / {{ coletas_meta.inicio }} até {{ coletas_meta.fim }}{% endif %} / PON {{ cliente["pon"] or "-" }} / {{ cliente["caixa"] or "-" }}</span>
-  </div>
-  {% set clientes = coletas %}
-  {% include "_tabela_clientes.html" %}
-</section>
 {% else %}
 <section class="panel">
   <div class="panel-header">

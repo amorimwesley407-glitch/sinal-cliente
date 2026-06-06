@@ -112,7 +112,6 @@ def detalhe_cliente(cliente_id: str):
     login = request.args.get("login", "").strip()
     coletas = obter_historico_cliente(cliente_id, limite=None, dias=7, login=login)
     cliente_atual = dict(coletas[0]) if coletas else None
-    coletas_meta = resumo_coletas(coletas)
     historico_conexao = []
     sinal_grafico = dados_grafico_sinal(coletas)
     if cliente_atual and cliente_atual["login"]:
@@ -144,7 +143,6 @@ def detalhe_cliente(cliente_id: str):
         "cliente.html",
         historico=historico_conexao,
         coletas=coletas,
-        coletas_meta=coletas_meta,
         sinal_grafico=sinal_grafico,
         historico_dias=DIAS_HISTORICO_CONEXAO,
         cliente=cliente_atual,
@@ -334,18 +332,6 @@ def pagina_atual(total_paginas: int) -> int:
     except ValueError:
         pagina = 1
     return min(max(pagina, 1), total_paginas)
-
-
-def resumo_coletas(coletas) -> dict:
-    datas = [parse_data_coleta(row["data_hora"]) for row in coletas if row["data_hora"]]
-    datas = [data for data in datas if data]
-    if not datas:
-        return {"total": 0, "inicio": "", "fim": ""}
-    return {
-        "total": len(coletas),
-        "inicio": min(datas).strftime("%d/%m/%Y %H:%M"),
-        "fim": max(datas).strftime("%d/%m/%Y %H:%M"),
-    }
 
 
 def dados_grafico_sinal(coletas, limite: int = 15) -> dict:
