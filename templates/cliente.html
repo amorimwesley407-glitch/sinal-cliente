@@ -53,9 +53,19 @@
 
 <section class="panel mt-3">
   <div class="panel-header">
+    <h2>Histórico do sinal</h2>
+    <span>até últimos 15 registros / {{ sinal_grafico.fonte }}</span>
+  </div>
+  <div class="signal-chart-box">
+    <canvas id="clienteSinalChart"></canvas>
+  </div>
+</section>
+
+<section class="panel mt-3">
+  <div class="panel-header">
     <h2>Histórico de conexão</h2>
     <span>
-      últimos 7 dias
+      últimos {{ historico_dias }} dias
       {% if acesso_bloqueado %}
         / {{ cliente["status_acesso"] }}{% if cliente["data_bloqueio"] %}: {{ cliente["data_bloqueio"] }}{% endif %}
       {% endif %}
@@ -108,5 +118,82 @@
     <span>nenhum registro encontrado</span>
   </div>
 </section>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if cliente %}
+<script>
+const sinalCliente = {{ sinal_grafico|tojson }};
+const sinalCanvas = document.getElementById("clienteSinalChart");
+
+if (sinalCanvas) {
+  new Chart(sinalCanvas, {
+    type: "line",
+    data: {
+      labels: sinalCliente.labels,
+      datasets: [
+        {
+          label: "Potência TX (dBm)",
+          data: sinalCliente.tx,
+          borderColor: "#0ea5e9",
+          backgroundColor: "rgba(14, 165, 233, .12)",
+          pointBackgroundColor: "#0ea5e9",
+          pointBorderColor: "#0ea5e9",
+          pointRadius: 4,
+          pointHoverRadius: 5,
+          spanGaps: true,
+          tension: .25
+        },
+        {
+          label: "Potência RX (dBm)",
+          data: sinalCliente.rx,
+          borderColor: "#f97316",
+          backgroundColor: "rgba(249, 115, 22, .12)",
+          pointBackgroundColor: "#f97316",
+          pointBorderColor: "#f97316",
+          pointRadius: 4,
+          pointHoverRadius: 5,
+          spanGaps: true,
+          tension: .25
+        }
+      ]
+    },
+    options: {
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: "index" },
+      plugins: {
+        legend: { position: "top", labels: { boxWidth: 26 } },
+        tooltip: {
+          callbacks: {
+            label: (context) => {
+              if (context.raw === null || context.raw === undefined) {
+                return `${context.dataset.label}: sem dado`;
+              }
+              return `${context.dataset.label}: ${Number(context.raw).toFixed(2)} dBm`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: "#e7edf3" },
+          title: { display: true, text: "Data/hora" },
+          ticks: { maxRotation: 45, minRotation: 45 }
+        },
+        y: {
+          grid: { color: "#e7edf3" },
+          suggestedMin: -35,
+          suggestedMax: -10,
+          title: { display: true, text: "Potência (dBm)" },
+          ticks: {
+            callback: (value) => `${value} dBm`
+          }
+        }
+      }
+    }
+  });
+}
+</script>
 {% endif %}
 {% endblock %}

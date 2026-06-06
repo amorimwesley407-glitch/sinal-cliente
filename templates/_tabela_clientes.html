@@ -8,14 +8,78 @@
         <th>RX</th>
         <th>TX</th>
         <th>Categoria</th>
-        <th>Online</th>
-        <th>Contrato</th>
-        <th>Acesso</th>
-        <th>Motivo</th>
+        <th>
+          {% if filtros is defined %}
+          <select class="column-filter" name="online" form="client-filter-form" aria-label="Filtrar Online" onchange="this.form.submit()">
+            <option value="">Online</option>
+            {% for opcao in filtros.online %}
+            <option value="{{ opcao.value }}" {% if request.args.get('online') == opcao.value %}selected{% endif %}>{{ opcao.label }}</option>
+            {% endfor %}
+          </select>
+          {% else %}
+          Online
+          {% endif %}
+        </th>
+        <th>
+          {% if filtros is defined %}
+          <select class="column-filter" name="contrato" form="client-filter-form" aria-label="Filtrar Contrato" onchange="this.form.submit()">
+            <option value="">Contrato</option>
+            {% for opcao in filtros.contrato %}
+            <option value="{{ opcao.value }}" {% if request.args.get('contrato') == opcao.value %}selected{% endif %}>{{ opcao.label }}</option>
+            {% endfor %}
+          </select>
+          {% else %}
+          Contrato
+          {% endif %}
+        </th>
+        <th>
+          {% if filtros is defined %}
+          <select class="column-filter" name="acesso" form="client-filter-form" aria-label="Filtrar Acesso" onchange="this.form.submit()">
+            <option value="">Acesso</option>
+            {% for opcao in filtros.acesso %}
+            <option value="{{ opcao.value }}" {% if request.args.get('acesso') == opcao.value %}selected{% endif %}>{{ opcao.label }}</option>
+            {% endfor %}
+          </select>
+          {% else %}
+          Acesso
+          {% endif %}
+        </th>
+        <th>
+          {% if filtros is defined %}
+          <select class="column-filter" name="motivo" form="client-filter-form" aria-label="Filtrar Motivo" onchange="this.form.submit()">
+            <option value="">Motivo</option>
+            {% for opcao in filtros.motivo %}
+            <option value="{{ opcao.value }}" {% if request.args.get('motivo') == opcao.value %}selected{% endif %}>{{ opcao.label }}</option>
+            {% endfor %}
+          </select>
+          {% else %}
+          Motivo
+          {% endif %}
+        </th>
         {% if mostrar_ultima_queda|default(false) %}
-        <th>Última queda</th>
+        <th>
+          {% if filtros is defined %}
+          <div class="column-date-filter">
+            <span>Ultima queda</span>
+            <input type="date" name="queda_inicio" form="client-filter-form" value="{{ request.args.get('queda_inicio', '') }}" aria-label="Ultima queda inicial" onchange="this.form.submit()">
+            <input type="date" name="queda_fim" form="client-filter-form" value="{{ request.args.get('queda_fim', '') }}" aria-label="Ultima queda final" onchange="this.form.submit()">
+          </div>
+          {% else %}
+          Ultima queda
+          {% endif %}
+        </th>
         {% endif %}
-        <th>Última coleta</th>
+        <th>
+          {% if filtros is defined %}
+          <div class="column-date-filter">
+            <span>Ultima coleta</span>
+            <input type="date" name="coleta_inicio" form="client-filter-form" value="{{ request.args.get('coleta_inicio', '') }}" aria-label="Ultima coleta inicial" onchange="this.form.submit()">
+            <input type="date" name="coleta_fim" form="client-filter-form" value="{{ request.args.get('coleta_fim', '') }}" aria-label="Ultima coleta final" onchange="this.form.submit()">
+          </div>
+          {% else %}
+          Ultima coleta
+          {% endif %}
+        </th>
       </tr>
     </thead>
     <tbody>

@@ -7,10 +7,7 @@
       <h2>{{ titulo }}</h2>
       <span>{{ paginacao.inicio }}-{{ paginacao.fim }} de {{ paginacao.total }} registros encontrados</span>
     </div>
-    <form class="search-form" method="get">
-      <input type="search" name="q" value="{{ request.args.get('q', '') }}" placeholder="Buscar nome, login ou contato">
-      <button type="submit">Buscar</button>
-    </form>
+    {% include "_filtros_clientes.html" %}
   </div>
   {% include "_tabela_clientes.html" %}
   {% include "_paginacao.html" %}

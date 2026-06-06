@@ -6,11 +6,30 @@ function mountChart(id, config) {
 const palette = {
   excellent: "#1f6feb",
   good: "#1f8f4d",
-  warning: "#b7791f",
+  warning: "#f2c94c",
   danger: "#c92a2a",
+  outOfPattern: "#ec4899",
   severe: "#8b1e1e",
   neutral: "#647386"
 };
+
+const categoryColors = {
+  EXCELENTE: palette.excellent,
+  BOM: palette.good,
+  "ATEN\u00c7\u00c3O": palette.warning,
+  "CR\u00cdTICO": palette.danger,
+  "FORA DO PADR\u00c3O": palette.outOfPattern,
+  "SEM DADOS": palette.neutral
+};
+
+const orderedCategories = [
+  "EXCELENTE",
+  "BOM",
+  "ATEN\u00c7\u00c3O",
+  "CR\u00cdTICO",
+  "FORA DO PADR\u00c3O",
+  "SEM DADOS"
+];
 
 function truncateLabel(value, maxLength = 28) {
   const text = String(value || "");
@@ -29,13 +48,21 @@ function criticalDepth(rx) {
   return Math.max(0, Math.abs(rx) - 28);
 }
 
+const categoriaData = orderedCategories
+  .filter((label) => Number(categorias[label] || 0) > 0)
+  .map((label) => ({
+    label,
+    value: categorias[label],
+    color: categoryColors[label] || palette.neutral
+  }));
+
 mountChart("categoriaChart", {
   type: "doughnut",
   data: {
-    labels: Object.keys(categorias),
+    labels: categoriaData.map((item) => item.label),
     datasets: [{
-      data: Object.values(categorias),
-      backgroundColor: [palette.neutral, palette.danger, palette.warning, palette.good, palette.excellent],
+      data: categoriaData.map((item) => item.value),
+      backgroundColor: categoriaData.map((item) => item.color),
       borderWidth: 0
     }]
   },

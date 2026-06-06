@@ -25,18 +25,23 @@ from database import (
 dashboard_bp = Blueprint("dashboard", __name__)
 logger = logging.getLogger(__name__)
 REGISTROS_POR_PAGINA = 50
+DIAS_HISTORICO_CONEXAO = 30
 
 
 @dashboard_bp.route("/")
 @dashboard_bp.route("/dashboard")
 def dashboard():
     stats = estatisticas_dashboard()
-    clientes, paginacao = paginar_registros(listar_offline_24h(limite=None))
+    clientes_base = listar_offline_24h(limite=None)
+    clientes_filtrados = filtrar_clientes(clientes_base)
+    clientes, paginacao = paginar_registros(clientes_filtrados)
     return render_template(
         "dashboard.html",
         stats=stats,
         clientes=clientes,
         paginacao=paginacao,
+        filtros=opcoes_filtros(clientes_base),
+        pagination_args=argumentos_paginacao(),
         top_criticos=top_criticos(),
         evolucao=serie_evolucao(),
     )
@@ -109,21 +114,39 @@ def detalhe_cliente(cliente_id: str):
     cliente_atual = dict(coletas[0]) if coletas else None
     coletas_meta = resumo_coletas(coletas)
     historico_conexao = []
+    sinal_grafico = dados_grafico_sinal(coletas)
     if cliente_atual and cliente_atual["login"]:
         try:
             client = IXCClient()
-            historico_conexao = client.buscar_historico_conexao(cliente_atual["login"], dias=7)
-            if cliente_com_bloqueio(cliente_atual) and not cliente_atual.get("data_bloqueio"):
-                cliente_atual.update(
-                    client.buscar_dados_bloqueio(cliente_atual["cliente_id"], cliente_atual["status_acesso"])
-                )
         except Exception:
-            logger.exception("Falha ao buscar historico Radacct do cliente %s", cliente_id)
+            logger.exception("Falha ao iniciar cliente IXC para %s", cliente_id)
+        else:
+            try:
+                historico_conexao = client.buscar_historico_conexao(
+                    cliente_atual["login"], dias=DIAS_HISTORICO_CONEXAO
+                )
+            except Exception:
+                logger.exception("Falha ao buscar historico Radacct do cliente %s", cliente_id)
+            try:
+                historico_potenciacao = buscar_historico_potenciacao_ixc(client, cliente_atual)
+                if historico_potenciacao:
+                    sinal_grafico = dados_grafico_potenciacao(historico_potenciacao)
+            except Exception:
+                logger.exception("Falha ao buscar historico de potenciacao do cliente %s", cliente_id)
+            try:
+                if cliente_com_bloqueio(cliente_atual) and not cliente_atual.get("data_bloqueio"):
+                    cliente_atual.update(
+                        client.buscar_dados_bloqueio(cliente_atual["cliente_id"], cliente_atual["status_acesso"])
+                    )
+            except Exception:
+                logger.exception("Falha ao buscar dados de bloqueio do cliente %s", cliente_id)
     return render_template(
         "cliente.html",
         historico=historico_conexao,
         coletas=coletas,
         coletas_meta=coletas_meta,
+        sinal_grafico=sinal_grafico,
+        historico_dias=DIAS_HISTORICO_CONEXAO,
         cliente=cliente_atual,
         cliente_id=cliente_id,
     )
@@ -166,27 +189,120 @@ def api_historico_cliente(cliente_id: str):
 
 def filtrar_clientes(clientes):
     termo = request.args.get("q", "").strip().lower()
-    if not termo:
+    online = request.args.get("online", "").strip().lower()
+    contrato = request.args.get("contrato", "").strip()
+    acesso = request.args.get("acesso", "").strip()
+    motivo = request.args.get("motivo", "").strip()
+    queda_inicio = data_filtro("queda_inicio")
+    queda_fim = data_filtro("queda_fim", fim_do_dia=True)
+    coleta_inicio = data_filtro("coleta_inicio")
+    coleta_fim = data_filtro("coleta_fim", fim_do_dia=True)
+    if not any((termo, online, contrato, acesso, motivo, queda_inicio, queda_fim, coleta_inicio, coleta_fim)):
         return clientes
     return [
         cliente
         for cliente in clientes
-        if termo in str(cliente["nome"]).lower()
-        or termo in str(cliente["login"]).lower()
-        or termo in str(cliente["contato"] or "").lower()
+        if (
+            not termo
+            or termo in texto_campo(cliente, "nome").lower()
+            or termo in texto_campo(cliente, "login").lower()
+            or termo in texto_campo(cliente, "contato").lower()
+        )
+        and (not online or online_status(valor_campo(cliente, "status_onu")) == online)
+        and (not contrato or texto_campo(cliente, "status_contrato") == contrato)
+        and (not acesso or texto_campo(cliente, "status_acesso") == acesso)
+        and (not motivo or motivo_cliente(cliente) == motivo)
+        and data_no_intervalo(valor_campo(cliente, "ultima_desconexao"), queda_inicio, queda_fim)
+        and data_no_intervalo(valor_campo(cliente, "data_hora"), coleta_inicio, coleta_fim)
     ]
 
 
 def renderizar_lista(titulo: str, clientes, mostrar_ultima_queda: bool = False):
-    clientes_filtrados = filtrar_clientes(clientes)
+    clientes_base = list(clientes)
+    clientes_filtrados = filtrar_clientes(clientes_base)
     clientes_pagina, paginacao = paginar_registros(clientes_filtrados)
     return render_template(
         "lista.html",
         titulo=titulo,
         clientes=clientes_pagina,
         paginacao=paginacao,
+        filtros=opcoes_filtros(clientes_base),
+        pagination_args=argumentos_paginacao(),
         mostrar_ultima_queda=mostrar_ultima_queda,
     )
+
+
+def opcoes_filtros(clientes) -> dict[str, list[dict[str, str]]]:
+    opcoes = {
+        "online": {},
+        "contrato": {},
+        "acesso": {},
+        "motivo": {},
+    }
+    for cliente in clientes:
+        online_value = online_status(valor_campo(cliente, "status_onu"))
+        opcoes["online"][online_value] = "Online" if online_value == "online" else "Offline"
+        adicionar_opcao(opcoes["contrato"], texto_campo(cliente, "status_contrato"))
+        adicionar_opcao(opcoes["acesso"], texto_campo(cliente, "status_acesso"))
+        adicionar_opcao(opcoes["motivo"], motivo_cliente(cliente))
+    return {chave: ordenar_opcoes(valores) for chave, valores in opcoes.items()}
+
+
+def adicionar_opcao(opcoes: dict[str, str], valor: str) -> None:
+    valor = valor.strip()
+    if valor:
+        opcoes[valor] = valor
+
+
+def ordenar_opcoes(opcoes: dict[str, str]) -> list[dict[str, str]]:
+    return [
+        {"value": value, "label": label}
+        for value, label in sorted(opcoes.items(), key=lambda item: item[1].lower())
+    ]
+
+
+def argumentos_paginacao() -> dict[str, str]:
+    args = request.args.to_dict()
+    args.pop("page", None)
+    return {chave: valor for chave, valor in args.items() if valor}
+
+
+def motivo_cliente(cliente) -> str:
+    return texto_campo(cliente, "motivo_desconexao") or texto_campo(cliente, "causa_ultima_queda")
+
+
+def data_filtro(nome: str, fim_do_dia: bool = False) -> datetime | None:
+    valor = request.args.get(nome, "").strip()
+    if not valor:
+        return None
+    try:
+        data = datetime.strptime(valor, "%Y-%m-%d")
+    except ValueError:
+        return None
+    if fim_do_dia:
+        return data.replace(hour=23, minute=59, second=59, microsecond=999999)
+    return data
+
+
+def data_no_intervalo(valor, inicio: datetime | None, fim: datetime | None) -> bool:
+    if not inicio and not fim:
+        return True
+    data = parse_data_coleta(str(valor or ""))
+    if not data:
+        return False
+    return (not inicio or data >= inicio) and (not fim or data <= fim)
+
+
+def texto_campo(cliente, chave: str) -> str:
+    valor = valor_campo(cliente, chave)
+    return str(valor or "").strip()
+
+
+def valor_campo(cliente, chave: str):
+    try:
+        return cliente[chave]
+    except (KeyError, IndexError):
+        return ""
 
 
 def cliente_com_bloqueio(cliente: dict) -> bool:
@@ -232,8 +348,66 @@ def resumo_coletas(coletas) -> dict:
     }
 
 
-def parse_data_coleta(valor: str) -> datetime | None:
-    try:
-        return datetime.fromisoformat(str(valor))
-    except ValueError:
+def dados_grafico_sinal(coletas, limite: int = 15) -> dict:
+    ultimas = list(coletas[:limite])
+    ultimas.reverse()
+    return {
+        "labels": [rotulo_data_grafico(row["data_hora"]) for row in ultimas],
+        "rx": [valor_grafico(row["rx"]) for row in ultimas],
+        "tx": [valor_grafico(row["tx"]) for row in ultimas],
+        "fonte": "Coletas locais",
+    }
+
+
+def buscar_historico_potenciacao_ixc(client: IXCClient, cliente: dict) -> list[dict]:
+    cliente_fibra = client.buscar_cliente_fibra(
+        login=texto_campo(cliente, "login"),
+        cliente_id=texto_campo(cliente, "cliente_id"),
+    )
+    id_cliente_fibra = str(cliente_fibra.get("id") or "") if cliente_fibra else ""
+    if not id_cliente_fibra:
+        return []
+    return client.buscar_historico_potenciacao(id_cliente_fibra, limite=15)
+
+
+def dados_grafico_potenciacao(historico: list[dict]) -> dict:
+    registros = list(historico[:15])
+    registros.reverse()
+    return {
+        "labels": [rotulo_data_grafico(row.get("data_sinal", "")) for row in registros],
+        "rx": [valor_grafico(row.get("sinal_rx")) for row in registros],
+        "tx": [valor_grafico(row.get("sinal_tx")) for row in registros],
+        "fonte": "IXC Histórico de potenciação",
+    }
+
+
+def rotulo_data_grafico(valor: str) -> str:
+    data = parse_data_coleta(valor)
+    if not data:
+        return str(valor or "-")
+    return data.strftime("%d/%m %H:%M")
+
+
+def valor_grafico(valor):
+    if valor in (None, ""):
         return None
+    try:
+        return float(valor)
+    except (TypeError, ValueError):
+        return None
+
+
+def parse_data_coleta(valor: str) -> datetime | None:
+    valor = str(valor or "").strip()
+    if not valor:
+        return None
+    try:
+        return datetime.fromisoformat(valor)
+    except ValueError:
+        pass
+    for formato in ("%Y-%m-%d %H:%M:%S", "%d/%m/%Y %H:%M:%S", "%d/%m/%Y %H:%M"):
+        try:
+            return datetime.strptime(valor, formato)
+        except ValueError:
+            continue
+    return None

@@ -1,0 +1,6 @@
+<form id="client-filter-form" class="filter-form search-only-form" method="get">
+  <input type="search" name="q" value="{{ request.args.get('q', '') }}" placeholder="Buscar nome, login ou contato">
+  {% if request.args.get('q') or request.args.get('online') or request.args.get('contrato') or request.args.get('acesso') or request.args.get('motivo') or request.args.get('queda_inicio') or request.args.get('queda_fim') or request.args.get('coleta_inicio') or request.args.get('coleta_fim') %}
+  <a class="clear-filters" href="{{ url_for(request.endpoint) }}">Limpar</a>
+  {% endif %}
+</form>

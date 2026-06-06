@@ -1,16 +1,15 @@
 {% if paginacao.total_paginas > 1 %}
 <div class="pagination-bar">
-  {% set q = request.args.get('q', '') %}
   {% if paginacao.pagina > 1 %}
-    <a href="{{ url_for(request.endpoint, page=paginacao.pagina - 1, q=q) }}">Anterior</a>
+    <a href="{{ url_for(request.endpoint, page=paginacao.pagina - 1, **pagination_args) }}">Anterior</a>
   {% else %}
     <span class="disabled">Anterior</span>
   {% endif %}
-  <span>Página {{ paginacao.pagina }} de {{ paginacao.total_paginas }}</span>
+  <span>Pagina {{ paginacao.pagina }} de {{ paginacao.total_paginas }}</span>
   {% if paginacao.pagina < paginacao.total_paginas %}
-    <a href="{{ url_for(request.endpoint, page=paginacao.pagina + 1, q=q) }}">Próxima</a>
+    <a href="{{ url_for(request.endpoint, page=paginacao.pagina + 1, **pagination_args) }}">Proxima</a>
   {% else %}
-    <span class="disabled">Próxima</span>
+    <span class="disabled">Proxima</span>
   {% endif %}
 </div>
 {% endif %}

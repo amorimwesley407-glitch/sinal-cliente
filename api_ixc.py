@@ -89,6 +89,41 @@ class IXCClient:
         rows = self.listar_todos("radusuarios", filtros, rp=1)
         return rows[0] if rows else None
 
+    def buscar_cliente_fibra(self, login: str | None = None, cliente_id: str | None = None) -> dict | None:
+        filtros_tentativas = []
+        usuario = self.buscar_usuario_radius(login=login) if login else None
+        id_login = str(primeiro_valor(usuario or {}, ["id"]) or "")
+        if id_login:
+            filtros_tentativas.append(
+                {"qtype": "radpop_radio_cliente_fibra.id_login", "query": id_login, "oper": "="}
+            )
+        if cliente_id:
+            filtros_tentativas.append(
+                {"qtype": "radpop_radio_cliente_fibra.id_cliente", "query": cliente_id, "oper": "="}
+            )
+
+        for filtros in filtros_tentativas:
+            rows = self.listar_todos("radpop_radio_cliente_fibra", filtros, rp=1)
+            if rows:
+                return rows[0]
+        return None
+
+    def buscar_historico_potenciacao(self, id_cliente_fibra: str, limite: int = 15) -> list[dict]:
+        if not id_cliente_fibra:
+            return []
+        filtros = {
+            "qtype": "radpop_radio_cliente_fibra_historico.id_cliente_fibra",
+            "query": id_cliente_fibra,
+            "oper": "=",
+            "sortname": "radpop_radio_cliente_fibra_historico.data_sinal",
+            "sortorder": "desc",
+        }
+        dados = self.listar("radpop_radio_cliente_fibra_historico", filtros=filtros, page=1, rp=limite)
+        rows = dados.get("registros") or dados.get("rows") or []
+        if isinstance(rows, dict):
+            rows = list(rows.values())
+        return [normalizar_historico_potenciacao(row) for row in rows]
+
     def buscar_dados_bloqueio(self, cliente_id: str, status_acesso: str) -> dict:
         if not cliente_id:
             return {"tipo_bloqueio": "", "data_bloqueio": ""}
@@ -218,6 +253,16 @@ def primeiro_valor(dados: dict, chaves: list[str]) -> Any:
         if valor not in (None, ""):
             return valor
     return None
+
+
+def normalizar_historico_potenciacao(row: dict) -> dict:
+    return {
+        "data_sinal": str(primeiro_valor(row, ["data_sinal"]) or ""),
+        "sinal_rx": normalizar_float(primeiro_valor(row, ["sinal_rx", "rx"])),
+        "sinal_tx": normalizar_float(primeiro_valor(row, ["sinal_tx", "tx"])),
+        "temperatura": normalizar_float(primeiro_valor(row, ["temperatura"])),
+        "voltagem": normalizar_float(primeiro_valor(row, ["voltagem"])),
+    }
 
 
 def contato_cliente(cliente: dict) -> str:
