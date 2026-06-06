@@ -159,6 +159,107 @@ class IXCClient:
         sessoes = [row for row in sessoes if row["inicio_dt"] and row["inicio_dt"] >= inicio_periodo]
         return calcular_intervalos_desconectado(sessoes)
 
+    def buscar_top_consumo_banda(
+        self,
+        clientes: list[dict],
+        dias: int = 30,
+        limite: int = 5,
+        sessoes_por_pagina: int = 1000,
+        max_paginas: int | None = None,
+    ) -> dict[str, list[dict]]:
+        max_paginas = max_paginas or int(os.getenv("IXC_CONSUMO_MAX_PAGINAS", "200"))
+        clientes_por_login = {
+            str(cliente.get("login") or "").strip(): cliente
+            for cliente in clientes
+            if str(cliente.get("login") or "").strip()
+        }
+        if not clientes_por_login:
+            return {"download": [], "upload": []}
+
+        inicio_periodo = datetime.now() - timedelta(days=dias)
+        consumo: dict[str, dict] = {}
+        for page in range(1, max_paginas + 1):
+            dados = self.listar(
+                "radacct",
+                filtros={
+                    "sortname": "acctstarttime",
+                    "sortorder": "desc",
+                },
+                page=page,
+                rp=sessoes_por_pagina,
+            )
+            rows = dados.get("registros") or dados.get("rows") or []
+            if isinstance(rows, dict):
+                rows = list(rows.values())
+            if not rows:
+                break
+
+            menor_inicio = None
+            for row in rows:
+                sessao = normalizar_sessao_radius(row)
+                inicio = sessao.get("inicio_dt")
+                if not inicio:
+                    continue
+                menor_inicio = inicio if menor_inicio is None else min(menor_inicio, inicio)
+                if inicio < inicio_periodo:
+                    continue
+                login = str(primeiro_valor(row, ["username", "login", "usuario"]) or "").strip()
+                cliente = clientes_por_login.get(login)
+                if not cliente:
+                    continue
+                item = consumo.setdefault(
+                    login,
+                    {
+                        **cliente,
+                        "upload_bytes": 0,
+                        "download_bytes": 0,
+                        "upload": "",
+                        "download": "",
+                    },
+                )
+                item["upload_bytes"] += sessao.get("upload_bytes") or 0
+                item["download_bytes"] += sessao.get("download_bytes") or 0
+
+            total = int(dados.get("total", 0) or 0)
+            if menor_inicio and menor_inicio < inicio_periodo:
+                break
+            if page * sessoes_por_pagina >= total:
+                break
+
+        registros = list(consumo.values())
+        if not registros:
+            registros = self._buscar_consumo_por_cliente(clientes, dias=dias)
+        for registro in registros:
+            registro["upload"] = formatar_bytes(registro["upload_bytes"])
+            registro["download"] = formatar_bytes(registro["download_bytes"])
+        return {
+            "download": sorted(registros, key=lambda row: row["download_bytes"], reverse=True)[:limite],
+            "upload": sorted(registros, key=lambda row: row["upload_bytes"], reverse=True)[:limite],
+        }
+
+    def _buscar_consumo_por_cliente(self, clientes: list[dict], dias: int) -> list[dict]:
+        max_clientes = int(os.getenv("IXC_CONSUMO_CLIENTES_LIMITE", "300"))
+        registros = []
+        for cliente in clientes[:max_clientes]:
+            login = str(cliente.get("login") or "").strip()
+            if not login:
+                continue
+            sessoes = self.buscar_historico_conexao(login, dias=dias)
+            upload_bytes = sum(sessao.get("upload_bytes") or 0 for sessao in sessoes)
+            download_bytes = sum(sessao.get("download_bytes") or 0 for sessao in sessoes)
+            if not upload_bytes and not download_bytes:
+                continue
+            registros.append(
+                {
+                    **cliente,
+                    "upload_bytes": upload_bytes,
+                    "download_bytes": download_bytes,
+                    "upload": "",
+                    "download": "",
+                }
+            )
+        return registros
+
     def coletar_sinais(self) -> list[dict]:
         fibras = self.listar_todos("radpop_radio_cliente_fibra")
         logger.info("IXC: %s registros de fibra carregados.", len(fibras))
@@ -290,6 +391,14 @@ def dados_conexao(radius: dict) -> dict:
     tempo_segundos = inteiro(primeiro_valor(radius, ["tempo_conectado", "tempo_conexao"]))
     ultima_desconexao = str(primeiro_valor(radius, ["ultima_conexao_final"]) or "")
     ultima_conexao = str(primeiro_valor(radius, ["ultima_conexao_inicial"]) or "")
+    upload_bytes = bytes_radius(
+        primeiro_valor(radius, ["acctinputoctets", "acctinputoctet", "inputoctets", "upload_bytes"]),
+        primeiro_valor(radius, ["acctinputgigawords", "inputgigawords", "upload_gigawords"]),
+    )
+    download_bytes = bytes_radius(
+        primeiro_valor(radius, ["acctoutputoctets", "acctoutputoctet", "outputoctets", "download_bytes"]),
+        primeiro_valor(radius, ["acctoutputgigawords", "outputgigawords", "download_gigawords"]),
+    )
 
     if online and (tempo_segundos is None or tempo_segundos <= 0):
         inicio = parse_ixc_datetime(ultima_conexao)
@@ -304,6 +413,10 @@ def dados_conexao(radius: dict) -> dict:
         "ultima_desconexao": ultima_desconexao,
         "tempo_desconectado": calcular_tempo_desconectado(ultima_desconexao, ultima_conexao, online=online, agora=agora),
         "motivo_desconexao": str(primeiro_valor(radius, ["motivo_desconexao"]) or ""),
+        "upload_bytes": upload_bytes,
+        "download_bytes": download_bytes,
+        "upload": formatar_bytes(upload_bytes),
+        "download": formatar_bytes(download_bytes),
     }
 
 
@@ -467,6 +580,8 @@ def normalizar_sessao_radius(row: dict) -> dict:
         "fim": formatar_data_br(fim),
         "tempo_ligado": formatar_duracao(tempo_segundos),
         "tempo_desconectado": "",
+        "upload_bytes": upload,
+        "download_bytes": download,
         "upload": formatar_bytes(upload),
         "download": formatar_bytes(download),
         "motivo": str(primeiro_valor(row, ["acctterminatecause"]) or ""),

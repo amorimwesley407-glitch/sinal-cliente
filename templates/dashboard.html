@@ -43,6 +43,45 @@
   </div>
 </section>
 
+<section class="panel bandwidth-panel mt-3">
+  <div class="panel-header">
+    <div>
+      <h2>Maior consumo de banda</h2>
+      <span>ranking por download e upload nos ultimos {{ historico_dias }} dias</span>
+    </div>
+  </div>
+  <div class="bandwidth-grid">
+    <div class="bandwidth-list">
+      <h3>Download</h3>
+      {% for cliente in top_consumo["download"] %}
+      <a class="bandwidth-row" href="{{ url_for('dashboard.detalhe_cliente', cliente_id=cliente['cliente_id'], login=cliente['login']) }}">
+        <span>
+          <strong>{{ loop.index }}. {{ cliente["nome"] }}</strong>
+          <small>{{ cliente["login"] or cliente["contato"] or "sem login" }}</small>
+        </span>
+        <b>{{ cliente["download"] or "-" }}</b>
+      </a>
+      {% else %}
+      <p class="empty-state">Sem dados de download no periodo.</p>
+      {% endfor %}
+    </div>
+    <div class="bandwidth-list">
+      <h3>Upload</h3>
+      {% for cliente in top_consumo["upload"] %}
+      <a class="bandwidth-row" href="{{ url_for('dashboard.detalhe_cliente', cliente_id=cliente['cliente_id'], login=cliente['login']) }}">
+        <span>
+          <strong>{{ loop.index }}. {{ cliente["nome"] }}</strong>
+          <small>{{ cliente["login"] or cliente["contato"] or "sem login" }}</small>
+        </span>
+        <b>{{ cliente["upload"] or "-" }}</b>
+      </a>
+      {% else %}
+      <p class="empty-state">Sem dados de upload no periodo.</p>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
 <section class="panel mt-3">
   <div class="panel-header">
     <div>

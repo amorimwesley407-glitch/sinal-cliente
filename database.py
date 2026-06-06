@@ -48,6 +48,10 @@ def init_db() -> None:
                 porta_caixa TEXT,
                 ultima_desconexao TEXT,
                 tempo_desconectado TEXT,
+                upload_bytes INTEGER,
+                download_bytes INTEGER,
+                upload TEXT,
+                download TEXT,
                 motivo_desconexao TEXT,
                 causa_ultima_queda TEXT,
                 tipo_bloqueio TEXT,
@@ -68,6 +72,10 @@ def init_db() -> None:
             "porta_caixa": "ALTER TABLE historico_sinal ADD COLUMN porta_caixa TEXT",
             "ultima_desconexao": "ALTER TABLE historico_sinal ADD COLUMN ultima_desconexao TEXT",
             "tempo_desconectado": "ALTER TABLE historico_sinal ADD COLUMN tempo_desconectado TEXT",
+            "upload_bytes": "ALTER TABLE historico_sinal ADD COLUMN upload_bytes INTEGER",
+            "download_bytes": "ALTER TABLE historico_sinal ADD COLUMN download_bytes INTEGER",
+            "upload": "ALTER TABLE historico_sinal ADD COLUMN upload TEXT",
+            "download": "ALTER TABLE historico_sinal ADD COLUMN download TEXT",
             "motivo_desconexao": "ALTER TABLE historico_sinal ADD COLUMN motivo_desconexao TEXT",
             "causa_ultima_queda": "ALTER TABLE historico_sinal ADD COLUMN causa_ultima_queda TEXT",
             "tipo_bloqueio": "ALTER TABLE historico_sinal ADD COLUMN tipo_bloqueio TEXT",
@@ -78,6 +86,22 @@ def init_db() -> None:
                 conn.execute(sql)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_hist_cliente_data ON historico_sinal(cliente_id, data_hora)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_hist_status ON historico_sinal(status)")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS consumo_banda_cache (
+                login TEXT PRIMARY KEY,
+                cliente_id TEXT,
+                nome TEXT NOT NULL,
+                contato TEXT,
+                upload_bytes INTEGER NOT NULL DEFAULT 0,
+                download_bytes INTEGER NOT NULL DEFAULT 0,
+                upload TEXT,
+                download TEXT,
+                periodo_dias INTEGER NOT NULL,
+                atualizado_em TEXT NOT NULL
+            )
+            """
+        )
 
 
 def salvar_coleta(registro: dict) -> None:
@@ -89,8 +113,9 @@ def salvar_coleta(registro: dict) -> None:
                 status_contrato, status_acesso, categoria, instavel, oscilacao_24h,
                 tempo_ligado, tempo_ligado_segundos,
                 pon, caixa, porta_caixa, ultima_desconexao, tempo_desconectado,
+                upload_bytes, download_bytes, upload, download,
                 motivo_desconexao, causa_ultima_queda, tipo_bloqueio, data_bloqueio, data_hora
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 registro["cliente_id"],
@@ -114,6 +139,10 @@ def salvar_coleta(registro: dict) -> None:
                 registro.get("porta_caixa", ""),
                 registro.get("ultima_desconexao", ""),
                 registro.get("tempo_desconectado", ""),
+                registro.get("upload_bytes"),
+                registro.get("download_bytes"),
+                registro.get("upload", ""),
+                registro.get("download", ""),
                 registro.get("motivo_desconexao", ""),
                 registro.get("causa_ultima_queda", ""),
                 registro.get("tipo_bloqueio", ""),
@@ -427,6 +456,69 @@ def top_criticos(limite: int = 20) -> list[sqlite3.Row]:
 def top_instaveis(limite: int = 20) -> list[sqlite3.Row]:
     rows = listar_ultima_coleta("AND instavel = 1", ())
     return sorted(rows, key=lambda r: r["oscilacao_24h"], reverse=True)[:limite]
+
+
+def salvar_consumo_banda_cache(ranking: dict[str, list[dict]], periodo_dias: int) -> None:
+    registros = {}
+    for grupo in ("download", "upload"):
+        for row in ranking.get(grupo, []):
+            login = str(row.get("login") or "").strip()
+            if not login:
+                continue
+            registros[login] = row
+    atualizado_em = datetime.now().isoformat(timespec="seconds")
+    with get_connection() as conn:
+        conn.execute("DELETE FROM consumo_banda_cache")
+        conn.executemany(
+            """
+            INSERT INTO consumo_banda_cache (
+                login, cliente_id, nome, contato, upload_bytes, download_bytes,
+                upload, download, periodo_dias, atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    login,
+                    row.get("cliente_id", ""),
+                    row.get("nome", ""),
+                    row.get("contato", ""),
+                    int(row.get("upload_bytes") or 0),
+                    int(row.get("download_bytes") or 0),
+                    row.get("upload", "") or formatar_bytes(int(row.get("upload_bytes") or 0)),
+                    row.get("download", "") or formatar_bytes(int(row.get("download_bytes") or 0)),
+                    periodo_dias,
+                    atualizado_em,
+                )
+                for login, row in registros.items()
+            ],
+        )
+
+
+def top_consumo_banda(limite: int = 5) -> dict[str, list[dict]]:
+    with get_connection() as conn:
+        rows = [dict(row) for row in conn.execute("SELECT * FROM consumo_banda_cache").fetchall()]
+    com_download = [row for row in rows if row.get("download_bytes")]
+    com_upload = [row for row in rows if row.get("upload_bytes")]
+    return {
+        "download": sorted(com_download, key=lambda row: row["download_bytes"], reverse=True)[:limite],
+        "upload": sorted(com_upload, key=lambda row: row["upload_bytes"], reverse=True)[:limite],
+    }
+
+
+def formatar_bytes(total: int | None) -> str:
+    if total is None or total < 0:
+        return ""
+    unidades = ["B", "KB", "MB", "GB", "TB", "PB"]
+    valor = float(total)
+    indice = 0
+    while valor >= 1024 and indice < len(unidades) - 1:
+        valor /= 1024
+        indice += 1
+    if indice == 0:
+        return f"{int(valor)} {unidades[indice]}"
+    if valor >= 100:
+        return f"{valor:.0f} {unidades[indice]}"
+    return f"{valor:.1f} {unidades[indice]}"
 
 
 def listar_bons_excelentes() -> list[sqlite3.Row]:

@@ -240,6 +240,75 @@ a {
   height: 420px;
 }
 
+.bandwidth-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 14px;
+}
+
+.bandwidth-list {
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.bandwidth-list h3 {
+  font-size: .82rem;
+  margin: 0 0 10px;
+  text-transform: uppercase;
+}
+
+.bandwidth-row {
+  align-items: center;
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-height: 54px;
+  padding: 9px 10px;
+}
+
+.bandwidth-row:hover {
+  background: #fff;
+}
+
+.bandwidth-row span {
+  min-width: 0;
+}
+
+.bandwidth-row strong,
+.bandwidth-row small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bandwidth-row strong {
+  font-size: .9rem;
+}
+
+.bandwidth-row small {
+  color: var(--muted);
+  font-size: .78rem;
+  margin-top: 3px;
+}
+
+.bandwidth-row b {
+  color: var(--blue);
+  flex: 0 0 auto;
+  font-size: .95rem;
+}
+
+.empty-state {
+  color: var(--muted);
+  margin: 0;
+  padding: 14px 10px;
+}
+
 .table-responsive {
   max-height: 68vh;
 }
@@ -614,6 +683,7 @@ a {
 
   .metric-grid,
   .dashboard-grid,
+  .bandwidth-grid,
   .detail-grid {
     grid-template-columns: 1fr;
   }

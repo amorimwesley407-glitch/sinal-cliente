@@ -9,7 +9,7 @@ from flask import Flask
 from api_ixc import IXCClient
 from classificador import classificar_rx, detectar_instabilidade, score_conexao
 from dashboard import dashboard_bp
-from database import init_db, salvar_coleta, ultimos_rx_24h
+from database import init_db, salvar_coleta, salvar_consumo_banda_cache, ultimos_rx_24h
 
 
 load_dotenv()
@@ -56,7 +56,25 @@ def executar_coleta() -> list[dict]:
         processados.append(item)
 
     logger.info("Coleta concluída: %s clientes processados.", len(processados))
+    atualizar_cache_consumo_banda(client, processados)
     return processados
+
+
+def atualizar_cache_consumo_banda(client: IXCClient, clientes: list[dict]) -> None:
+    if not clientes:
+        return
+    periodo_dias = int(os.getenv("IXC_CONSUMO_PERIODO_DIAS", "30"))
+    limite = int(os.getenv("IXC_CONSUMO_RANK_LIMITE", "20"))
+    try:
+        ranking = client.buscar_top_consumo_banda(clientes, dias=periodo_dias, limite=limite)
+        salvar_consumo_banda_cache(ranking, periodo_dias)
+        logger.info(
+            "Cache de consumo atualizado: %s download / %s upload.",
+            len(ranking.get("download", [])),
+            len(ranking.get("upload", [])),
+        )
+    except Exception:
+        logger.exception("Falha ao atualizar cache de consumo de banda.")
 
 
 def gerar_alertas(registros: list[dict]) -> list[str]:

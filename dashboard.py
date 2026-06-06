@@ -18,6 +18,7 @@ from database import (
     obter_historico_cliente,
     serie_evolucao,
     estatisticas_dashboard,
+    top_consumo_banda,
     top_criticos,
 )
 
@@ -43,6 +44,8 @@ def dashboard():
         filtros=opcoes_filtros(clientes_base),
         pagination_args=argumentos_paginacao(),
         top_criticos=top_criticos(),
+        top_consumo=top_consumo_banda(),
+        historico_dias=DIAS_HISTORICO_CONEXAO,
         evolucao=serie_evolucao(),
     )
 
