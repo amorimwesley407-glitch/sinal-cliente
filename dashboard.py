@@ -116,19 +116,25 @@ def detalhe_cliente(cliente_id: str):
     coletas = obter_historico_cliente(cliente_id, limite=None, dias=7, login=login)
     cliente_atual = dict(coletas[0]) if coletas else None
     historico_conexao = []
+    ultimas_os = []
     sinal_grafico = dados_grafico_sinal(coletas)
-    if cliente_atual and cliente_atual["login"]:
+    if cliente_atual:
         try:
             client = IXCClient()
         except Exception:
             logger.exception("Falha ao iniciar cliente IXC para %s", cliente_id)
         else:
+            if cliente_atual["login"]:
+                try:
+                    historico_conexao = client.buscar_historico_conexao(
+                        cliente_atual["login"], dias=DIAS_HISTORICO_CONEXAO
+                    )
+                except Exception:
+                    logger.exception("Falha ao buscar historico Radacct do cliente %s", cliente_id)
             try:
-                historico_conexao = client.buscar_historico_conexao(
-                    cliente_atual["login"], dias=DIAS_HISTORICO_CONEXAO
-                )
+                ultimas_os = client.buscar_ultimas_os_cliente(cliente_atual["cliente_id"], limite=10)
             except Exception:
-                logger.exception("Falha ao buscar historico Radacct do cliente %s", cliente_id)
+                logger.exception("Falha ao buscar ultimas OSs do cliente %s", cliente_id)
             try:
                 historico_potenciacao = buscar_historico_potenciacao_ixc(client, cliente_atual)
                 if historico_potenciacao:
@@ -150,6 +156,7 @@ def detalhe_cliente(cliente_id: str):
         historico_dias=DIAS_HISTORICO_CONEXAO,
         cliente=cliente_atual,
         cliente_id=cliente_id,
+        ultimas_os=ultimas_os,
     )
 
 

@@ -53,6 +53,45 @@
 
 <section class="panel mt-3">
   <div class="panel-header">
+    <h2>&Uacute;ltimas OSs</h2>
+    <span>at&eacute; 10 registros mais recentes</span>
+  </div>
+  <div class="table-responsive service-orders">
+    <table class="table table-sm align-middle">
+      <thead>
+        <tr>
+          <th>OS</th>
+          <th>Protocolo</th>
+          <th>Abertura</th>
+          <th>Status</th>
+          <th>Assunto</th>
+          <th>T&eacute;cnico</th>
+          <th>Fechamento</th>
+          <th>Descri&ccedil;&atilde;o</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for os in ultimas_os %}
+        <tr>
+          <td class="mono">{{ os["id"] or "-" }}</td>
+          <td class="mono">{{ os["protocolo"] or "-" }}</td>
+          <td class="mono">{{ os["abertura"] or "-" }}</td>
+          <td><span class="badge status-{{ os['status']|status_class }}">{{ os["status"] }}</span></td>
+          <td>{{ os["assunto"] or "-" }}</td>
+          <td>{{ os["tecnico"] or "-" }}</td>
+          <td class="mono">{{ os["fechamento"] or "-" }}</td>
+          <td class="order-message">{{ os["mensagem"] or "-" }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center text-muted py-4">Nenhuma OS encontrada para este cliente.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="panel mt-3">
+  <div class="panel-header">
     <h2>Histórico do sinal</h2>
     <span>até últimos 15 registros / {{ sinal_grafico.fonte }}</span>
   </div>

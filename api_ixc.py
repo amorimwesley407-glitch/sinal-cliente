@@ -140,6 +140,54 @@ class IXCClient:
                 return dados_bloqueio_contrato(contrato, status)
         return {"tipo_bloqueio": "", "data_bloqueio": ""}
 
+    def buscar_ultimas_os_cliente(self, cliente_id: str, limite: int = 10) -> list[dict]:
+        if not cliente_id:
+            return []
+        filtros = {
+            "qtype": "su_oss_chamado.id_cliente",
+            "query": cliente_id,
+            "oper": "=",
+            "sortname": "su_oss_chamado.data_abertura",
+            "sortorder": "desc",
+        }
+        dados = self.listar("su_oss_chamado", filtros=filtros, page=1, rp=limite)
+        rows = dados.get("registros") or dados.get("rows") or []
+        if isinstance(rows, dict):
+            rows = list(rows.values())
+        assuntos = self.buscar_nomes_por_ids(
+            ids_unicos(rows, ["id_assunto", "assunto"]),
+            [("su_oss_assunto", "su_oss_assunto.id")],
+            ["assunto", "descricao", "nome", "titulo"],
+        )
+        tecnicos = self.buscar_nomes_por_ids(
+            ids_unicos(rows, ["id_tecnico", "id_funcionario", "tecnico", "funcionario"]),
+            [("funcionarios", "funcionarios.id"), ("funcionario", "funcionario.id")],
+            ["funcionario", "nome", "razao", "nome_funcionario"],
+        )
+        return [normalizar_os(row, assuntos=assuntos, tecnicos=tecnicos) for row in rows]
+
+    def buscar_nomes_por_ids(
+        self,
+        ids: set[str],
+        endpoint_tentativas: list[tuple[str, str]],
+        campos_nome: list[str],
+    ) -> dict[str, str]:
+        nomes = {}
+        for item_id in ids:
+            for endpoint, qtype in endpoint_tentativas:
+                try:
+                    rows = self.listar_todos(endpoint, {"qtype": qtype, "query": item_id, "oper": "="}, rp=1)
+                except Exception:
+                    logger.exception("Falha ao buscar nome do id %s em %s.", item_id, endpoint)
+                    continue
+                if not rows:
+                    continue
+                nome = str(primeiro_valor(rows[0], campos_nome) or "").strip()
+                if nome:
+                    nomes[item_id] = nome
+                break
+        return nomes
+
     def buscar_historico_conexao(self, login: str, dias: int = 7, limite: int = 100) -> list[dict]:
         if not login:
             return []
@@ -372,6 +420,24 @@ def primeiro_valor(dados: dict, chaves: list[str]) -> Any:
     return None
 
 
+def ids_unicos(rows: list[dict], chaves: list[str]) -> set[str]:
+    ids = set()
+    for row in rows:
+        valor = primeiro_valor(row, chaves)
+        if valor not in (None, "") and parece_id(valor):
+            ids.add(str(valor).strip())
+    return ids
+
+
+def parece_id(valor: Any) -> bool:
+    return str(valor or "").strip().isdigit()
+
+
+def texto_se_nao_id(valor: Any) -> str:
+    texto = str(valor or "").strip()
+    return "" if parece_id(texto) else texto
+
+
 def top_candidatos_consumo(registros: list[dict], limite: int) -> list[dict]:
     candidatos = {}
     for chave in ("download_bytes", "upload_bytes"):
@@ -391,6 +457,42 @@ def normalizar_historico_potenciacao(row: dict) -> dict:
         "temperatura": normalizar_float(primeiro_valor(row, ["temperatura"])),
         "voltagem": normalizar_float(primeiro_valor(row, ["voltagem"])),
     }
+
+
+def normalizar_os(
+    row: dict,
+    assuntos: dict[str, str] | None = None,
+    tecnicos: dict[str, str] | None = None,
+) -> dict:
+    assunto_id = str(primeiro_valor(row, ["id_assunto", "assunto"]) or "").strip()
+    tecnico_id = str(primeiro_valor(row, ["id_tecnico", "id_funcionario", "tecnico", "funcionario"]) or "").strip()
+    assunto_texto = texto_se_nao_id(primeiro_valor(row, ["assunto", "titulo", "descricao"]))
+    tecnico_texto = texto_se_nao_id(primeiro_valor(row, ["tecnico", "funcionario", "nome_tecnico", "nome_funcionario"]))
+    return {
+        "id": str(primeiro_valor(row, ["id", "id_os"]) or ""),
+        "protocolo": str(primeiro_valor(row, ["protocolo", "protocolo_chamado"]) or ""),
+        "assunto": (assuntos or {}).get(assunto_id) or assunto_texto,
+        "status": status_os(primeiro_valor(row, ["status", "status_sla", "situacao"])),
+        "abertura": str(primeiro_valor(row, ["data_abertura", "data_inicio", "data", "data_cadastro"]) or ""),
+        "fechamento": str(primeiro_valor(row, ["data_fechamento", "data_final", "data_finalizacao"]) or ""),
+        "tecnico": (tecnicos or {}).get(tecnico_id) or tecnico_texto,
+        "mensagem": str(primeiro_valor(row, ["mensagem", "descricao", "observacao", "obs"]) or ""),
+    }
+
+
+def status_os(valor: Any) -> str:
+    status = str(valor or "").strip().upper()
+    mapa = {
+        "A": "ABERTA",
+        "AG": "AGENDADA",
+        "AN": "ANALISE",
+        "AS": "ASSUMIDA",
+        "EN": "ENCAMINHADA",
+        "EX": "EXECUCAO",
+        "F": "FINALIZADA",
+        "R": "REAGENDADA",
+    }
+    return mapa.get(status, status or "SEM STATUS")
 
 
 def contato_cliente(cliente: dict) -> str:

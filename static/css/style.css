@@ -429,6 +429,22 @@ a {
   color: var(--amber);
 }
 
+.status-aberta,
+.status-agendada,
+.status-reagendada,
+.status-analise,
+.status-assumida,
+.status-encaminhada,
+.status-execucao {
+  background: rgba(31, 111, 235, .12);
+  color: var(--blue);
+}
+
+.status-finalizada {
+  background: rgba(31, 143, 77, .13);
+  color: var(--green);
+}
+
 .signal-summary .badge {
   display: inline-block;
   min-width: 0;
@@ -664,6 +680,16 @@ a {
 
 .connection-history {
   max-height: 320px;
+}
+
+.service-orders {
+  max-height: 360px;
+}
+
+.order-message {
+  color: var(--muted);
+  max-width: 320px;
+  white-space: normal;
 }
 
 .signal-chart-box {
