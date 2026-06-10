@@ -1,15 +1,17 @@
 {% if paginacao.total_paginas > 1 %}
-<div class="pagination-bar">
-  {% if paginacao.pagina > 1 %}
-    <a href="{{ url_for(request.endpoint, page=paginacao.pagina - 1, **pagination_args) }}">Anterior</a>
-  {% else %}
-    <span class="disabled">Anterior</span>
-  {% endif %}
-  <span>Pagina {{ paginacao.pagina }} de {{ paginacao.total_paginas }}</span>
-  {% if paginacao.pagina < paginacao.total_paginas %}
-    <a href="{{ url_for(request.endpoint, page=paginacao.pagina + 1, **pagination_args) }}">Proxima</a>
-  {% else %}
-    <span class="disabled">Proxima</span>
-  {% endif %}
+<div class="flex flex-col gap-3 rounded-[1.4rem] border border-white/10 bg-white/[0.03] px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+  <p class="m-0 text-sm text-slate-400">Pagina {{ paginacao.pagina }} de {{ paginacao.total_paginas }}</p>
+  <div class="flex flex-wrap gap-2">
+    {% if paginacao.pagina > 1 %}
+    <a href="{{ url_for(request.endpoint, page=paginacao.pagina - 1, **pagination_args) }}" class="ghost-button pagination-pill action-link">Anterior</a>
+    {% else %}
+    <span class="ghost-button pagination-pill cursor-not-allowed opacity-45">Anterior</span>
+    {% endif %}
+    {% if paginacao.pagina < paginacao.total_paginas %}
+    <a href="{{ url_for(request.endpoint, page=paginacao.pagina + 1, **pagination_args) }}" class="cta-button pagination-pill action-link">Proxima</a>
+    {% else %}
+    <span class="ghost-button pagination-pill cursor-not-allowed opacity-45">Proxima</span>
+    {% endif %}
+  </div>
 </div>
 {% endif %}

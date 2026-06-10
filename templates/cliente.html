@@ -1,157 +1,179 @@
 {% extends "base.html" %}
+{% block title %}Ficha do cliente{% endblock %}
 {% block page_title %}Ficha do cliente{% endblock %}
+{% block page_subtitle %}Detalhe comercial do cliente com leitura priorizada para diagnostico de sinal, conectividade e historico operacional.{% endblock %}
 {% block content %}
 {% if cliente %}
-{% set acesso_bloqueado = cliente["status_acesso"] in ["BLOQUEIO AUTOMÁTICO", "BLOQUEIO MANUAL"] %}
-<section class="client-hero">
-  <div>
-    <span class="eyebrow">Cliente {{ cliente_id }}</span>
-    <h2>{{ cliente["nome"] }}</h2>
-    <div class="client-meta">
-      <span class="mono">{{ cliente["login"] or "PPPoE não informado" }}</span>
-      <span>{{ cliente["contato"] or "Sem contato cadastrado" }}</span>
-      <span class="badge status-{{ cliente['categoria']|status_class }}">{{ cliente["categoria"] }}</span>
+{% set acesso_bloqueado = cliente["status_acesso"]|status_class in ["bloqueio-automatico", "bloqueio-manual"] %}
+<section class="grid gap-5">
+  <div class="glass-panel fade-in-up rounded-[1.8rem] p-5 lg:p-6">
+    <div class="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+      <div class="min-w-0">
+        <p class="stat-kicker">Cliente {{ cliente_id }}</p>
+        <h2 class="mt-3 break-words text-3xl font-semibold tracking-tight text-slate-50">{{ cliente["nome"] }}</h2>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <span class="ghost-button !cursor-default !py-3">{{ cliente["login"] or "PPPoE nao informado" }}</span>
+          <span class="ghost-button !cursor-default !py-3">{{ cliente["contato"] or "Sem contato cadastrado" }}</span>
+          <span class="badge status-{{ cliente['categoria']|status_class }}">{{ cliente["categoria"] }}</span>
+        </div>
+      </div>
+      <div class="grid w-full gap-3 sm:grid-cols-2 xl:max-w-[560px] xl:flex-1">
+        <div class="rounded-[1.4rem] border border-white/10 bg-white/[0.03] p-4">
+          <p class="stat-kicker">RX</p>
+          <p class="mt-3 text-2xl font-semibold text-slate-50">{{ cliente["rx"]|sinal_optico }}</p>
+        </div>
+        <div class="rounded-[1.4rem] border border-white/10 bg-white/[0.03] p-4">
+          <p class="stat-kicker">TX</p>
+          <p class="mt-3 text-2xl font-semibold text-slate-50">{{ cliente["tx"]|sinal_optico }}</p>
+        </div>
+        <div class="rounded-[1.4rem] border border-white/10 bg-white/[0.03] p-4">
+          <p class="stat-kicker">Contrato</p>
+          <div class="mt-3"><span class="badge status-{{ cliente['status_contrato']|status_class }}">{{ cliente["status_contrato"] or "-" }}</span></div>
+        </div>
+        <div class="rounded-[1.4rem] border border-white/10 bg-white/[0.03] p-4">
+          <p class="stat-kicker">Acesso</p>
+          <div class="mt-3"><span class="badge status-{{ cliente['status_acesso']|status_class }}">{{ cliente["status_acesso"] or "-" }}</span></div>
+        </div>
+      </div>
     </div>
   </div>
-  <div class="signal-summary">
-    <div><span>RX</span><strong>{{ cliente["rx"]|sinal_optico }}</strong></div>
-    <div><span>TX</span><strong>{{ cliente["tx"]|sinal_optico }}</strong></div>
-    <div><span>Contrato</span><strong><span class="badge status-{{ cliente['status_contrato']|status_class }}">{{ cliente["status_contrato"] or "-" }}</span></strong></div>
-    <div><span>Acesso</span><strong><span class="badge status-{{ cliente['status_acesso']|status_class }}">{{ cliente["status_acesso"] or "-" }}</span></strong></div>
-  </div>
-</section>
 
-<section class="detail-grid">
-  <div class="detail-card">
-    <span>Tempo ligado</span>
-    <strong>{{ cliente["tempo_ligado"] or "-" }}</strong>
-    <small>tempo conectado no Radius/PPPoE</small>
+  <div class="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
+    <div class="glass-panel rounded-[1.5rem] p-5">
+      <p class="stat-kicker">Tempo ligado</p>
+      <p class="mt-3 text-xl font-semibold text-slate-50">{{ cliente["tempo_ligado"] or "-" }}</p>
+      <p class="panel-copy">tempo conectado no Radius/PPPoE</p>
+    </div>
+    <div class="glass-panel rounded-[1.5rem] p-5">
+      <p class="stat-kicker">PON</p>
+      <p class="mt-3 text-xl font-semibold text-slate-50">{{ cliente["pon"] or "-" }}</p>
+      <p class="panel-copy">porta logica na OLT</p>
+    </div>
+    <div class="glass-panel rounded-[1.5rem] p-5">
+      <p class="stat-kicker">CB-SP-CX</p>
+      <p class="mt-3 text-xl font-semibold text-slate-50">{{ cliente["caixa"] or "-" }}</p>
+      <p class="panel-copy">porta {{ cliente["porta_caixa"] or "-" }}</p>
+    </div>
+    <div class="glass-panel rounded-[1.5rem] p-5">
+      <p class="stat-kicker">Ultima desconexao</p>
+      <p class="mt-3 text-xl font-semibold text-slate-50">{{ cliente["ultima_desconexao"] or "-" }}</p>
+      <p class="panel-copy">{{ cliente["motivo_desconexao"] or cliente["causa_ultima_queda"] or "sem motivo informado" }}</p>
+    </div>
+    {% if acesso_bloqueado %}
+    <div class="glass-panel rounded-[1.5rem] p-5 md:col-span-2 2xl:col-span-4">
+      <p class="stat-kicker">{{ cliente["status_acesso"] }}</p>
+      <p class="mt-3 text-xl font-semibold text-slate-50">{{ cliente["data_bloqueio"] or "-" }}</p>
+      <p class="panel-copy">data registrada no contrato IXC</p>
+    </div>
+    {% endif %}
   </div>
-  <div class="detail-card">
-    <span>PON</span>
-    <strong>{{ cliente["pon"] or "-" }}</strong>
-    <small>porta lógica na OLT</small>
-  </div>
-  <div class="detail-card">
-    <span>CB-SP-CX</span>
-    <strong>{{ cliente["caixa"] or "-" }}</strong>
-    <small>porta {{ cliente["porta_caixa"] or "-" }}</small>
-  </div>
-  <div class="detail-card">
-    <span>Última desconexão</span>
-    <strong>{{ cliente["ultima_desconexao"] or "-" }}</strong>
-    <small>{{ cliente["motivo_desconexao"] or cliente["causa_ultima_queda"] or "sem motivo informado" }}</small>
-  </div>
-  {% if acesso_bloqueado %}
-  <div class="detail-card">
-    <span>{{ cliente["status_acesso"] }}</span>
-    <strong>{{ cliente["data_bloqueio"] or "-" }}</strong>
-    <small>data registrada no contrato IXC</small>
-  </div>
-  {% endif %}
-</section>
 
-<section class="panel mt-3">
-  <div class="panel-header">
-    <h2>&Uacute;ltimas OSs</h2>
-    <span>at&eacute; 10 registros mais recentes</span>
-  </div>
-  <div class="table-responsive service-orders">
-    <table class="table table-sm align-middle">
-      <thead>
-        <tr>
-          <th>OS</th>
-          <th>Protocolo</th>
-          <th>Abertura</th>
-          <th>Status</th>
-          <th>Assunto</th>
-          <th>T&eacute;cnico</th>
-          <th>Fechamento</th>
-          <th>Descri&ccedil;&atilde;o</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for os in ultimas_os %}
-        <tr>
-          <td class="mono">{{ os["id"] or "-" }}</td>
-          <td class="mono">{{ os["protocolo"] or "-" }}</td>
-          <td class="mono">{{ os["abertura"] or "-" }}</td>
-          <td><span class="badge status-{{ os['status']|status_class }}">{{ os["status"] }}</span></td>
-          <td>{{ os["assunto"] or "-" }}</td>
-          <td>{{ os["tecnico"] or "-" }}</td>
-          <td class="mono">{{ os["fechamento"] or "-" }}</td>
-          <td class="order-message">{{ os["mensagem"] or "-" }}</td>
-        </tr>
-        {% else %}
-        <tr><td colspan="8" class="text-center text-muted py-4">Nenhuma OS encontrada para este cliente.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</section>
+  <section class="glass-panel rounded-[1.8rem] p-5 lg:p-6">
+    <div class="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+      <div>
+        <h2 class="panel-title">Historico do sinal</h2>
+        <p class="panel-copy">Ate os ultimos 15 registros, fonte: {{ sinal_grafico.fonte }}.</p>
+      </div>
+    </div>
+    <div class="chart-box mt-5">
+      <canvas id="clienteSinalChart"></canvas>
+    </div>
+  </section>
 
-<section class="panel mt-3">
-  <div class="panel-header">
-    <h2>Histórico do sinal</h2>
-    <span>até últimos 15 registros / {{ sinal_grafico.fonte }}</span>
-  </div>
-  <div class="signal-chart-box">
-    <canvas id="clienteSinalChart"></canvas>
-  </div>
-</section>
+  <section class="glass-panel rounded-[1.8rem] p-5 lg:p-6">
+    <div class="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+      <div>
+        <h2 class="panel-title">Ultimas OSs</h2>
+        <p class="panel-copy">Ate 10 registros mais recentes para apoio ao atendimento.</p>
+      </div>
+    </div>
+    <div class="mt-5 table-shell">
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>OS</th>
+              <th>Protocolo</th>
+              <th>Abertura</th>
+              <th>Status</th>
+              <th>Assunto</th>
+              <th>Tecnico</th>
+              <th>Fechamento</th>
+              <th>Descricao</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for os in ultimas_os %}
+            <tr>
+              <td class="mono">{{ os["id"] or "-" }}</td>
+              <td class="mono">{{ os["protocolo"] or "-" }}</td>
+              <td class="mono">{{ os["abertura"] or "-" }}</td>
+              <td><span class="badge status-{{ os['status']|status_class }}">{{ os["status"] }}</span></td>
+              <td>{{ os["assunto"] or "-" }}</td>
+              <td>{{ os["tecnico"] or "-" }}</td>
+              <td class="mono">{{ os["fechamento"] or "-" }}</td>
+              <td class="max-w-[320px] text-sm leading-6 text-slate-300">{{ os["mensagem"] or "-" }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" class="px-4 py-10 text-center text-sm text-slate-400">Nenhuma OS encontrada para este cliente.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
 
-<section class="panel mt-3">
-  <div class="panel-header">
-    <h2>Histórico de conexão</h2>
-    <span>
-      últimos {{ historico_dias }} dias
-      {% if acesso_bloqueado %}
-        / {{ cliente["status_acesso"] }}{% if cliente["data_bloqueio"] %}: {{ cliente["data_bloqueio"] }}{% endif %}
-      {% endif %}
-    </span>
-  </div>
-  <div class="table-responsive connection-history">
-    <table class="table table-sm align-middle">
-      <thead>
-        <tr>
-          <th>Início</th>
-          <th>Fim</th>
-          <th>Tempo ligado</th>
-          <th>Tempo desconectado</th>
-          <th>Upload</th>
-          <th>Download</th>
-          <th>Motivo</th>
-          <th>IP</th>
-          <th>MAC</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in historico %}
-        <tr>
-          <td class="mono">{{ item["inicio"] or "-" }}</td>
-          <td class="mono">{{ item["fim"] or "conectado" }}</td>
-          <td class="mono">{{ item["tempo_ligado"] or "-" }}</td>
-          <td class="mono">{{ item["tempo_desconectado"] or "-" }}</td>
-          <td class="mono">{{ item["upload"] or "-" }}</td>
-          <td class="mono">{{ item["download"] or "-" }}</td>
-          <td>{{ item["motivo"] or "-" }}</td>
-          <td class="mono">{{ item["ip"] or "-" }}</td>
-          <td class="mono">{{ item["mac"] or "-" }}</td>
-        </tr>
-        {% else %}
-        <tr><td colspan="9" class="text-center text-muted py-4">Nenhum histórico de conexão encontrado.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+  <section class="glass-panel rounded-[1.8rem] p-5 lg:p-6">
+    <div class="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+      <div>
+        <h2 class="panel-title">Historico de conexao</h2>
+        <p class="panel-copy">
+          Ultimos {{ historico_dias }} dias{% if acesso_bloqueado %} / {{ cliente["status_acesso"] }}{% if cliente["data_bloqueio"] %}: {{ cliente["data_bloqueio"] }}{% endif %}{% endif %}.
+        </p>
+      </div>
+    </div>
+    <div class="mt-5 table-shell">
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Inicio</th>
+              <th>Fim</th>
+              <th>Tempo ligado</th>
+              <th>Tempo desconectado</th>
+              <th>Upload</th>
+              <th>Download</th>
+              <th>Motivo</th>
+              <th>IP</th>
+              <th>MAC</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for item in historico %}
+            <tr>
+              <td class="mono">{{ item["inicio"] or "-" }}</td>
+              <td class="mono">{{ item["fim"] or "conectado" }}</td>
+              <td class="mono">{{ item["tempo_ligado"] or "-" }}</td>
+              <td class="mono">{{ item["tempo_desconectado"] or "-" }}</td>
+              <td class="mono">{{ item["upload"] or "-" }}</td>
+              <td class="mono">{{ item["download"] or "-" }}</td>
+              <td class="max-w-[220px] text-sm leading-6 text-slate-300">{{ item["motivo"] or "-" }}</td>
+              <td class="mono">{{ item["ip"] or "-" }}</td>
+              <td class="mono">{{ item["mac"] or "-" }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="9" class="px-4 py-10 text-center text-sm text-slate-400">Nenhum historico de conexao encontrado.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
 </section>
-
 {% else %}
-<section class="panel">
-  <div class="panel-header">
-    <h2>Cliente {{ cliente_id }}</h2>
-    <span>nenhum registro encontrado</span>
-  </div>
+<section class="glass-panel fade-in-up rounded-[1.8rem] p-6">
+  <h2 class="panel-title">Cliente {{ cliente_id }}</h2>
+  <p class="panel-copy mt-2">Nenhum registro encontrado.</p>
 </section>
 {% endif %}
 {% endblock %}
@@ -169,28 +191,34 @@ if (sinalCanvas) {
       labels: sinalCliente.labels,
       datasets: [
         {
-          label: "Potência TX (dBm)",
+          label: "Potencia TX (dBm)",
           data: sinalCliente.tx,
-          borderColor: "#0ea5e9",
-          backgroundColor: "rgba(14, 165, 233, .12)",
-          pointBackgroundColor: "#0ea5e9",
-          pointBorderColor: "#0ea5e9",
-          pointRadius: 4,
+          borderColor: "#22d3ee",
+          backgroundColor: "rgba(34, 211, 238, 0.16)",
+          pointBackgroundColor: "#22d3ee",
+          pointBorderColor: "#22d3ee",
+          pointRadius: 3.5,
           pointHoverRadius: 5,
+          pointBorderWidth: 0,
+          borderWidth: 2.2,
+          fill: false,
           spanGaps: true,
-          tension: .25
+          tension: 0.34
         },
         {
-          label: "Potência RX (dBm)",
+          label: "Potencia RX (dBm)",
           data: sinalCliente.rx,
           borderColor: "#f97316",
-          backgroundColor: "rgba(249, 115, 22, .12)",
+          backgroundColor: "rgba(249, 115, 22, 0.16)",
           pointBackgroundColor: "#f97316",
           pointBorderColor: "#f97316",
-          pointRadius: 4,
+          pointRadius: 3.5,
           pointHoverRadius: 5,
+          pointBorderWidth: 0,
+          borderWidth: 2.2,
+          fill: false,
           spanGaps: true,
-          tension: .25
+          tension: 0.34
         }
       ]
     },
@@ -198,8 +226,20 @@ if (sinalCanvas) {
       maintainAspectRatio: false,
       interaction: { intersect: false, mode: "index" },
       plugins: {
-        legend: { position: "top", labels: { boxWidth: 26 } },
+        legend: {
+          position: "top",
+          labels: {
+            color: "#dbeafe",
+            boxWidth: 18,
+            usePointStyle: true
+          }
+        },
         tooltip: {
+          backgroundColor: "rgba(15, 23, 42, 0.96)",
+          borderColor: "rgba(148, 163, 184, 0.18)",
+          borderWidth: 1,
+          titleColor: "#eff6ff",
+          bodyColor: "#cbd5e1",
           callbacks: {
             label: (context) => {
               if (context.raw === null || context.raw === undefined) {
@@ -212,18 +252,19 @@ if (sinalCanvas) {
       },
       scales: {
         x: {
-          grid: { color: "#e7edf3" },
-          title: { display: true, text: "Data/hora" },
-          ticks: { maxRotation: 45, minRotation: 45 }
+          grid: { color: "rgba(148, 163, 184, 0.12)" },
+          ticks: { color: "#94a3b8", maxRotation: 0 },
+          title: { display: true, text: "Data/hora", color: "#cbd5e1" }
         },
         y: {
-          grid: { color: "#e7edf3" },
+          grid: { color: "rgba(148, 163, 184, 0.12)" },
           suggestedMin: -35,
           suggestedMax: -10,
-          title: { display: true, text: "Potência (dBm)" },
           ticks: {
+            color: "#94a3b8",
             callback: (value) => `${value} dBm`
-          }
+          },
+          title: { display: true, text: "Potencia (dBm)", color: "#cbd5e1" }
         }
       }
     }

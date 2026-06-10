@@ -1,15 +1,27 @@
 {% extends "base.html" %}
+{% block title %}{{ titulo }}{% endblock %}
 {% block page_title %}{{ titulo }}{% endblock %}
+{% block page_subtitle %}Explore a base monitorada com filtros, paginação e leitura otimizada para equipe operacional.{% endblock %}
 {% block content %}
-<section class="panel">
-  <div class="panel-header list-header">
-    <div>
-      <h2>{{ titulo }}</h2>
-      <span>{{ paginacao.inicio }}-{{ paginacao.fim }} de {{ paginacao.total }} registros encontrados</span>
+<section class="glass-panel fade-in-up rounded-[2rem] p-5 lg:p-7">
+  <div class="flex flex-col gap-3">
+    <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+      <div>
+        <h2 class="panel-title">{{ titulo }}</h2>
+        <p class="panel-copy">{{ paginacao.inicio }}-{{ paginacao.fim }} de {{ paginacao.total }} registros encontrados.</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <a href="{{ export_csv_url }}" class="ghost-button action-link">Baixar CSV</a>
+        <a href="{{ export_excel_url }}" class="ghost-button action-link">Baixar Excel</a>
+      </div>
     </div>
     {% include "_filtros_clientes.html" %}
   </div>
-  {% include "_tabela_clientes.html" %}
-  {% include "_paginacao.html" %}
+  <div class="mt-6">
+    {% include "_tabela_clientes.html" %}
+  </div>
+  <div class="mt-5">
+    {% include "_paginacao.html" %}
+  </div>
 </section>
 {% endblock %}

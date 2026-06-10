@@ -1,6 +1,8 @@
-<form id="client-filter-form" class="filter-form search-only-form" method="get">
-  <input type="search" name="q" value="{{ request.args.get('q', '') }}" placeholder="Buscar nome, login ou contato">
+<form id="client-filter-form" class="flex w-full flex-wrap items-center gap-3" method="get">
+  <label class="sr-only" for="client-filter-search">Buscar clientes</label>
+  <input id="client-filter-search" class="field w-full max-w-[420px] flex-[1_1_320px]" type="search" name="q" value="{{ request.args.get('q', '') }}" placeholder="Buscar nome, login ou contato">
+  <button type="submit" class="cta-button">Aplicar</button>
   {% if request.args.get('q') or request.args.get('online') or request.args.get('contrato') or request.args.get('acesso') or request.args.get('motivo') or request.args.get('queda_inicio') or request.args.get('queda_fim') or request.args.get('coleta_inicio') or request.args.get('coleta_fim') %}
-  <a class="clear-filters" href="{{ url_for(request.endpoint) }}">Limpar</a>
+  <a class="ghost-button action-link" href="{{ url_for(request.endpoint) }}">Limpar</a>
   {% endif %}
 </form>

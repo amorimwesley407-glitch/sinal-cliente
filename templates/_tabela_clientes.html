@@ -1,108 +1,192 @@
-<div class="table-responsive">
-  <table class="table table-sm align-middle">
-    <thead>
-      <tr>
-        <th>Cliente</th>
-        <th>Contato</th>
-        <th>PPPoE</th>
-        <th>RX</th>
-        <th>TX</th>
-        <th>Categoria</th>
-        <th>
-          {% if filtros is defined %}
-          <select class="column-filter" name="online" form="client-filter-form" aria-label="Filtrar Online" onchange="this.form.submit()">
-            <option value="">Online</option>
-            {% for opcao in filtros.online %}
-            <option value="{{ opcao.value }}" {% if request.args.get('online') == opcao.value %}selected{% endif %}>{{ opcao.label }}</option>
-            {% endfor %}
-          </select>
+<div class="hidden lg:block">
+  <div class="table-shell">
+    <div class="table-scroll">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th class="col-cliente">Cliente</th>
+            <th class="col-contato">Contato</th>
+            <th class="col-pppoe">PPPoE</th>
+            <th class="col-rx">RX</th>
+            <th class="col-tx">TX</th>
+            <th class="col-categoria">Categoria</th>
+            <th class="col-online">
+              {% if filtros is defined %}
+              <select class="header-filter" name="online" form="client-filter-form" aria-label="Filtrar online" onchange="this.form.submit()">
+                <option value="">Online</option>
+                {% for opcao in filtros.online %}
+                <option value="{{ opcao.value }}" {% if request.args.get('online') == opcao.value %}selected{% endif %}>{{ opcao.label }}</option>
+                {% endfor %}
+              </select>
+              {% else %}
+              Online
+              {% endif %}
+            </th>
+            <th class="col-contrato">
+              {% if filtros is defined %}
+              <select class="header-filter" name="contrato" form="client-filter-form" aria-label="Filtrar contrato" onchange="this.form.submit()">
+                <option value="">Contrato</option>
+                {% for opcao in filtros.contrato %}
+                <option value="{{ opcao.value }}" {% if request.args.get('contrato') == opcao.value %}selected{% endif %}>{{ opcao.label }}</option>
+                {% endfor %}
+              </select>
+              {% else %}
+              Contrato
+              {% endif %}
+            </th>
+            <th class="col-acesso">
+              {% if filtros is defined %}
+              <select class="header-filter" name="acesso" form="client-filter-form" aria-label="Filtrar acesso" onchange="this.form.submit()">
+                <option value="">Acesso</option>
+                {% for opcao in filtros.acesso %}
+                <option value="{{ opcao.value }}" {% if request.args.get('acesso') == opcao.value %}selected{% endif %}>{{ opcao.label }}</option>
+                {% endfor %}
+              </select>
+              {% else %}
+              Acesso
+              {% endif %}
+            </th>
+            <th class="col-motivo">
+              {% if filtros is defined %}
+              <select class="header-filter" name="motivo" form="client-filter-form" aria-label="Filtrar motivo" onchange="this.form.submit()">
+                <option value="">Motivo</option>
+                {% for opcao in filtros.motivo %}
+                <option value="{{ opcao.value }}" {% if request.args.get('motivo') == opcao.value %}selected{% endif %}>{{ opcao.label }}</option>
+                {% endfor %}
+              </select>
+              {% else %}
+              Motivo
+              {% endif %}
+            </th>
+            {% if mostrar_ultima_queda|default(false) %}
+            <th class="col-queda">
+              {% if filtros is defined %}
+              <details class="header-date-filter">
+                <summary class="header-date-toggle">
+                  <span>Ultima queda</span>
+                  <b>{% if request.args.get('queda_inicio') or request.args.get('queda_fim') %}Ativo{% else %}Filtrar{% endif %}</b>
+                </summary>
+                <div class="header-date-popover">
+                  <label class="header-date-row">
+                    <span>De</span>
+                    <input class="header-date-input" type="date" name="queda_inicio" form="client-filter-form" value="{{ request.args.get('queda_inicio', '') }}" aria-label="Ultima queda inicial">
+                  </label>
+                  <label class="header-date-row">
+                    <span>Ate</span>
+                    <input class="header-date-input" type="date" name="queda_fim" form="client-filter-form" value="{{ request.args.get('queda_fim', '') }}" aria-label="Ultima queda final">
+                  </label>
+                  <button type="submit" form="client-filter-form" class="header-date-apply">Aplicar</button>
+                </div>
+              </details>
+              {% else %}
+              Ultima queda
+              {% endif %}
+            </th>
+            {% endif %}
+            <th class="col-coleta">
+              {% if filtros is defined %}
+              <details class="header-date-filter">
+                <summary class="header-date-toggle">
+                  <span>Ultima coleta</span>
+                  <b>{% if request.args.get('coleta_inicio') or request.args.get('coleta_fim') %}Ativo{% else %}Filtrar{% endif %}</b>
+                </summary>
+                <div class="header-date-popover">
+                  <label class="header-date-row">
+                    <span>De</span>
+                    <input class="header-date-input" type="date" name="coleta_inicio" form="client-filter-form" value="{{ request.args.get('coleta_inicio', '') }}" aria-label="Ultima coleta inicial">
+                  </label>
+                  <label class="header-date-row">
+                    <span>Ate</span>
+                    <input class="header-date-input" type="date" name="coleta_fim" form="client-filter-form" value="{{ request.args.get('coleta_fim', '') }}" aria-label="Ultima coleta final">
+                  </label>
+                  <button type="submit" form="client-filter-form" class="header-date-apply">Aplicar</button>
+                </div>
+              </details>
+              {% else %}
+              Ultima coleta
+              {% endif %}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for cliente in clientes %}
+          <tr>
+            <td>
+              <a class="table-link font-semibold" href="{{ url_for('dashboard.detalhe_cliente', cliente_id=cliente['cliente_id'], login=cliente['login']) }}">{{ cliente["nome"] }}</a>
+            </td>
+            <td class="max-w-[220px] text-sm text-slate-300">{{ cliente["contato"] or "-" }}</td>
+            <td class="mono">{{ cliente["login"] or "-" }}</td>
+            <td class="mono">{{ cliente["rx"]|sinal_optico }}</td>
+            <td class="mono">{{ cliente["tx"]|sinal_optico }}</td>
+            <td><span class="badge status-{{ cliente['categoria']|status_class }}">{{ cliente["categoria"] }}</span></td>
+            <td><span class="badge status-{{ cliente['status_onu']|online_status }}">{{ cliente["status_onu"]|online_label }}</span></td>
+            <td><span class="badge status-{{ cliente['status_contrato']|status_class }}">{{ cliente["status_contrato"] or "-" }}</span></td>
+            <td><span class="badge status-{{ cliente['status_acesso']|status_class }}">{{ cliente["status_acesso"] or "-" }}</span></td>
+            <td class="max-w-[240px] text-sm leading-6 text-slate-300">{{ cliente["motivo_desconexao"] or cliente["causa_ultima_queda"] or "-" }}</td>
+            {% if mostrar_ultima_queda|default(false) %}
+            <td class="mono">{{ cliente["ultima_desconexao"] or "-" }}</td>
+            {% endif %}
+            <td class="mono">{{ cliente["data_hora"] }}</td>
+          </tr>
           {% else %}
-          Online
-          {% endif %}
-        </th>
-        <th>
-          {% if filtros is defined %}
-          <select class="column-filter" name="contrato" form="client-filter-form" aria-label="Filtrar Contrato" onchange="this.form.submit()">
-            <option value="">Contrato</option>
-            {% for opcao in filtros.contrato %}
-            <option value="{{ opcao.value }}" {% if request.args.get('contrato') == opcao.value %}selected{% endif %}>{{ opcao.label }}</option>
-            {% endfor %}
-          </select>
-          {% else %}
-          Contrato
-          {% endif %}
-        </th>
-        <th>
-          {% if filtros is defined %}
-          <select class="column-filter" name="acesso" form="client-filter-form" aria-label="Filtrar Acesso" onchange="this.form.submit()">
-            <option value="">Acesso</option>
-            {% for opcao in filtros.acesso %}
-            <option value="{{ opcao.value }}" {% if request.args.get('acesso') == opcao.value %}selected{% endif %}>{{ opcao.label }}</option>
-            {% endfor %}
-          </select>
-          {% else %}
-          Acesso
-          {% endif %}
-        </th>
-        <th>
-          {% if filtros is defined %}
-          <select class="column-filter" name="motivo" form="client-filter-form" aria-label="Filtrar Motivo" onchange="this.form.submit()">
-            <option value="">Motivo</option>
-            {% for opcao in filtros.motivo %}
-            <option value="{{ opcao.value }}" {% if request.args.get('motivo') == opcao.value %}selected{% endif %}>{{ opcao.label }}</option>
-            {% endfor %}
-          </select>
-          {% else %}
-          Motivo
-          {% endif %}
-        </th>
-        {% if mostrar_ultima_queda|default(false) %}
-        <th>
-          {% if filtros is defined %}
-          <div class="column-date-filter">
-            <span>Ultima queda</span>
-            <input type="date" name="queda_inicio" form="client-filter-form" value="{{ request.args.get('queda_inicio', '') }}" aria-label="Ultima queda inicial" onchange="this.form.submit()">
-            <input type="date" name="queda_fim" form="client-filter-form" value="{{ request.args.get('queda_fim', '') }}" aria-label="Ultima queda final" onchange="this.form.submit()">
-          </div>
-          {% else %}
-          Ultima queda
-          {% endif %}
-        </th>
-        {% endif %}
-        <th>
-          {% if filtros is defined %}
-          <div class="column-date-filter">
-            <span>Ultima coleta</span>
-            <input type="date" name="coleta_inicio" form="client-filter-form" value="{{ request.args.get('coleta_inicio', '') }}" aria-label="Ultima coleta inicial" onchange="this.form.submit()">
-            <input type="date" name="coleta_fim" form="client-filter-form" value="{{ request.args.get('coleta_fim', '') }}" aria-label="Ultima coleta final" onchange="this.form.submit()">
-          </div>
-          {% else %}
-          Ultima coleta
-          {% endif %}
-        </th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for cliente in clientes %}
-      <tr>
-        <td><a class="client-link" href="{{ url_for('dashboard.detalhe_cliente', cliente_id=cliente['cliente_id'], login=cliente['login']) }}">{{ cliente["nome"] }}</a></td>
-        <td>{{ cliente["contato"] or "-" }}</td>
-        <td class="mono">{{ cliente["login"] or "-" }}</td>
-        <td class="mono">{{ cliente["rx"]|sinal_optico }}</td>
-        <td class="mono">{{ cliente["tx"]|sinal_optico }}</td>
-        <td><span class="badge status-{{ cliente['categoria']|status_class }}">{{ cliente["categoria"] }}</span></td>
-        <td><span class="badge status-{{ cliente['status_onu']|online_status }}">{{ cliente["status_onu"]|online_label }}</span></td>
-        <td><span class="badge status-{{ cliente['status_contrato']|status_class }}">{{ cliente["status_contrato"] or "-" }}</span></td>
-        <td><span class="badge status-{{ cliente['status_acesso']|status_class }}">{{ cliente["status_acesso"] or "-" }}</span></td>
-        <td class="reason-cell">{{ cliente["motivo_desconexao"] or cliente["causa_ultima_queda"] or "-" }}</td>
-        {% if mostrar_ultima_queda|default(false) %}
-        <td class="mono">{{ cliente["ultima_desconexao"] or "-" }}</td>
-        {% endif %}
-        <td class="mono">{{ cliente["data_hora"] }}</td>
-      </tr>
-      {% else %}
-      <tr><td colspan="{{ 12 if mostrar_ultima_queda|default(false) else 11 }}" class="text-center text-muted py-4">Nenhum registro encontrado.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+          <tr>
+            <td colspan="{{ 12 if mostrar_ultima_queda|default(false) else 11 }}" class="px-4 py-10 text-center text-sm text-slate-400">Nenhum registro encontrado.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="table-card-grid lg:hidden">
+  {% for cliente in clientes %}
+  <article class="table-card">
+    <div class="flex items-start justify-between gap-3">
+      <div class="min-w-0">
+        <a class="table-link block truncate text-base font-semibold" href="{{ url_for('dashboard.detalhe_cliente', cliente_id=cliente['cliente_id'], login=cliente['login']) }}">{{ cliente["nome"] }}</a>
+        <p class="m-0 mt-1 truncate text-sm text-slate-400">{{ cliente["contato"] or "Sem contato" }}</p>
+      </div>
+      <span class="badge status-{{ cliente['categoria']|status_class }}">{{ cliente["categoria"] }}</span>
+    </div>
+    <dl class="mt-4">
+      <div>
+        <dt>PPPoE</dt>
+        <dd class="mono">{{ cliente["login"] or "-" }}</dd>
+      </div>
+      <div>
+        <dt>Online</dt>
+        <dd><span class="badge status-{{ cliente['status_onu']|online_status }}">{{ cliente["status_onu"]|online_label }}</span></dd>
+      </div>
+      <div>
+        <dt>RX / TX</dt>
+        <dd class="mono">{{ cliente["rx"]|sinal_optico }} / {{ cliente["tx"]|sinal_optico }}</dd>
+      </div>
+      <div>
+        <dt>Contrato</dt>
+        <dd><span class="badge status-{{ cliente['status_contrato']|status_class }}">{{ cliente["status_contrato"] or "-" }}</span></dd>
+      </div>
+      <div>
+        <dt>Acesso</dt>
+        <dd><span class="badge status-{{ cliente['status_acesso']|status_class }}">{{ cliente["status_acesso"] or "-" }}</span></dd>
+      </div>
+      <div>
+        <dt>Ultima coleta</dt>
+        <dd class="mono">{{ cliente["data_hora"] }}</dd>
+      </div>
+      {% if mostrar_ultima_queda|default(false) %}
+      <div>
+        <dt>Ultima queda</dt>
+        <dd class="mono">{{ cliente["ultima_desconexao"] or "-" }}</dd>
+      </div>
+      {% endif %}
+      <div class="{% if mostrar_ultima_queda|default(false) %}sm:col-span-2{% else %}sm:col-span-2{% endif %}">
+        <dt>Motivo</dt>
+        <dd>{{ cliente["motivo_desconexao"] or cliente["causa_ultima_queda"] or "-" }}</dd>
+      </div>
+    </dl>
+  </article>
+  {% else %}
+  <div class="table-card text-center text-sm text-slate-400">Nenhum registro encontrado.</div>
+  {% endfor %}
 </div>

@@ -7,7 +7,7 @@ import unicodedata
 from datetime import datetime
 
 import pandas as pd
-from flask import Blueprint, Response, render_template, request, send_file
+from flask import Blueprint, Response, render_template, request, send_file, url_for
 
 from api_ixc import IXCClient
 from coleta_status import snapshot as coleta_snapshot
@@ -200,6 +200,38 @@ def api_historico_cliente(cliente_id: str):
     }
 
 
+@dashboard_bp.route("/exportar-lista/<formato>")
+def exportar_lista(formato: str):
+    origem = request.args.get("origem", "").strip()
+    clientes = clientes_por_origem(origem)
+    if clientes is None:
+        return "Origem invalida", 400
+
+    rows = [dict(row) if not isinstance(row, dict) else row for row in filtrar_clientes(list(clientes))]
+    df = pd.DataFrame(rows)
+    nome_base = nome_arquivo_exportacao(origem)
+
+    if formato == "csv":
+        csv_data = df.to_csv(index=False, sep=";")
+        return Response(
+            csv_data,
+            mimetype="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={nome_base}.csv"},
+        )
+    if formato in {"xlsx", "excel"}:
+        output = io.BytesIO()
+        with pd.ExcelWriter(output, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name="Clientes")
+        output.seek(0)
+        return send_file(
+            output,
+            as_attachment=True,
+            download_name=f"{nome_base}.xlsx",
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+    return "Formato invalido", 400
+
+
 def filtrar_clientes(clientes):
     termo = request.args.get("q", "").strip().lower()
     online = request.args.get("online", "").strip().lower()
@@ -234,6 +266,7 @@ def renderizar_lista(titulo: str, clientes, mostrar_ultima_queda: bool = False):
     clientes_base = list(clientes)
     clientes_filtrados = filtrar_clientes(clientes_base)
     clientes_pagina, paginacao = paginar_registros(clientes_filtrados)
+    export_args = argumentos_exportacao_lista()
     return render_template(
         "lista.html",
         titulo=titulo,
@@ -241,6 +274,8 @@ def renderizar_lista(titulo: str, clientes, mostrar_ultima_queda: bool = False):
         paginacao=paginacao,
         filtros=opcoes_filtros(clientes_base),
         pagination_args=argumentos_paginacao(),
+        export_csv_url=url_for("dashboard.exportar_lista", formato="csv", **export_args),
+        export_excel_url=url_for("dashboard.exportar_lista", formato="xlsx", **export_args),
         mostrar_ultima_queda=mostrar_ultima_queda,
     )
 
@@ -278,6 +313,37 @@ def argumentos_paginacao() -> dict[str, str]:
     args = request.args.to_dict()
     args.pop("page", None)
     return {chave: valor for chave, valor in args.items() if valor}
+
+
+def argumentos_exportacao_lista() -> dict[str, str]:
+    args = argumentos_paginacao()
+    args["origem"] = request.endpoint or ""
+    return args
+
+
+def clientes_por_origem(origem: str):
+    if origem == "dashboard.clientes_criticos":
+        return listar_clientes_por_categoria("CRITICO")
+    if origem == "dashboard.clientes_atencao":
+        return listar_clientes_por_categoria("ATENCAO")
+    if origem == "dashboard.clientes_bons":
+        return listar_clientes_por_categoria("BOM")
+    if origem == "dashboard.clientes_excelentes":
+        return listar_clientes_por_categoria("EXCELENTE")
+    if origem == "dashboard.offiline":
+        return listar_offline_mais_de_um_dia()
+    return None
+
+
+def nome_arquivo_exportacao(origem: str) -> str:
+    nomes = {
+        "dashboard.clientes_criticos": "clientes_criticos",
+        "dashboard.clientes_atencao": "clientes_atencao",
+        "dashboard.clientes_bons": "clientes_bons",
+        "dashboard.clientes_excelentes": "clientes_excelentes",
+        "dashboard.offiline": "clientes_offline_prolongado",
+    }
+    return nomes.get(origem, "clientes")
 
 
 def motivo_cliente(cliente) -> str:
