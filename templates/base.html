@@ -38,8 +38,8 @@
           <h1>{% block page_title %}Dashboard{% endblock %}</h1>
         </div>
         <div class="topbar-status">
-          <span class="status-dot"></span>
-          <span>IXC Online</span>
+          <span class="status-dot {% if coleta_info is defined %}status-dot-{{ coleta_info.status }}{% endif %}"></span>
+          <span>{% if coleta_info is defined %}{{ coleta_info.status_text }}{% else %}IXC Online{% endif %}</span>
         </div>
       </header>
       <main class="content">

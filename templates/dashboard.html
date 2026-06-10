@@ -1,6 +1,27 @@
 {% extends "base.html" %}
 {% block page_title %}Dashboard NOC{% endblock %}
 {% block content %}
+<section class="coleta-status-card status-{{ coleta_info.status }}">
+  <div class="coleta-status-main">
+    <span class="coleta-status-label">Coleta Automática</span>
+    <strong>{{ coleta_info.status_text }}</strong>
+    <small>
+      Última coleta no banco: {{ coleta_info.db_last_data_hora }} | Clientes atuais: {{ coleta_info.db_total_clientes }}
+    </small>
+  </div>
+  <div class="coleta-status-meta">
+    <span><b>Intervalo</b> {{ coleta_info.interval_text }}</span>
+    <span><b>Último sucesso</b> {{ coleta_info.last_success_at }}</span>
+    <span><b>Próxima coleta</b> {{ coleta_info.next_run_at }}</span>
+    {% if coleta_info.running %}
+    <span><b>Execução atual</b> iniciada em {{ coleta_info.last_started_at }}</span>
+    {% endif %}
+    {% if coleta_info.last_error %}
+    <span><b>Erro</b> {{ coleta_info.last_error }}</span>
+    {% endif %}
+  </div>
+</section>
+
 <section class="metric-grid">
   <a class="metric danger" href="{{ url_for('dashboard.clientes_criticos') }}">
     <span>Críticos</span>
@@ -102,6 +123,7 @@ const categorias = {{ stats.categorias|tojson }};
 const criticos = {{ top_criticos|map(attribute='nome')|list|tojson }};
 const criticosRx = {{ top_criticos|map(attribute='rx')|list|tojson }};
 const criticosLogin = {{ top_criticos|map(attribute='login')|list|tojson }};
+const criticosIds = {{ top_criticos|map(attribute='cliente_id')|list|tojson }};
 </script>
 <script src="{{ url_for('static', filename='js/charts.js') }}"></script>
 {% endblock %}

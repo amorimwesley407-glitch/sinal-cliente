@@ -16,20 +16,29 @@ const palette = {
 const categoryColors = {
   EXCELENTE: palette.excellent,
   BOM: palette.good,
-  "ATEN\u00c7\u00c3O": palette.warning,
-  "CR\u00cdTICO": palette.danger,
-  "FORA DO PADR\u00c3O": palette.outOfPattern,
+  ATENCAO: palette.warning,
+  CRITICO: palette.danger,
+  "FORA DO PADRAO": palette.outOfPattern,
   "SEM DADOS": palette.neutral
 };
 
 const orderedCategories = [
   "EXCELENTE",
   "BOM",
-  "ATEN\u00c7\u00c3O",
-  "CR\u00cdTICO",
-  "FORA DO PADR\u00c3O",
+  "ATENCAO",
+  "CRITICO",
+  "FORA DO PADRAO",
   "SEM DADOS"
 ];
+
+const categoryLabels = {
+  EXCELENTE: "EXCELENTE",
+  BOM: "BOM",
+  ATENCAO: "ATENÇÃO",
+  CRITICO: "CRÍTICO",
+  "FORA DO PADRAO": "FORA DO PADRÃO",
+  "SEM DADOS": "SEM DADOS"
+};
 
 function truncateLabel(value, maxLength = 28) {
   const text = String(value || "");
@@ -51,7 +60,7 @@ function criticalDepth(rx) {
 const categoriaData = orderedCategories
   .filter((label) => Number(categorias[label] || 0) > 0)
   .map((label) => ({
-    label,
+    label: categoryLabels[label] || label,
     value: categorias[label],
     color: categoryColors[label] || palette.neutral
   }));
@@ -78,6 +87,7 @@ mountChart("categoriaChart", {
 const criticosData = criticos
   .map((nome, index) => ({
     nome,
+    clienteId: criticosIds[index] || "",
     login: criticosLogin[index] || "",
     rx: criticosRx[index],
     depth: criticalDepth(criticosRx[index])
@@ -100,6 +110,16 @@ mountChart("criticosChart", {
     indexAxis: "y",
     maintainAspectRatio: false,
     layout: { padding: { right: 18 } },
+    onHover: (event, elements) => {
+      event.native.target.style.cursor = elements.length ? "pointer" : "default";
+    },
+    onClick: (_, elements) => {
+      if (!elements.length) return;
+      const item = criticosData[elements[0].index];
+      if (!item?.clienteId) return;
+      const query = item.login ? `?login=${encodeURIComponent(item.login)}` : "";
+      window.location.href = `/cliente/${encodeURIComponent(item.clienteId)}${query}`;
+    },
     plugins: {
       legend: { display: false },
       tooltip: {

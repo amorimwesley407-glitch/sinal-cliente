@@ -36,6 +36,22 @@ python app.py
 
 Acesse `http://localhost:5000/dashboard`.
 
+## Coleta Automática
+
+Ao subir `python app.py`, a aplicação pode executar coletas automáticas em segundo plano para manter o dashboard atualizado sem rodar `--coletar` manualmente.
+
+Variáveis disponíveis no `.env`:
+
+```env
+AUTO_COLETA_ENABLED=1
+AUTO_COLETA_INTERVALO_SEGUNDOS=900
+AUTO_COLETA_STARTUP=1
+```
+
+- `AUTO_COLETA_ENABLED=1`: liga a coleta automática
+- `AUTO_COLETA_INTERVALO_SEGUNDOS=900`: executa uma nova coleta a cada 15 minutos
+- `AUTO_COLETA_STARTUP=1`: faz uma coleta logo ao iniciar a aplicação
+
 ## Rotas
 
 - `/dashboard`
@@ -48,7 +64,7 @@ Acesse `http://localhost:5000/dashboard`.
 
 ## Agendamento
 
-Para registrar histórico contínuo, agende `python app.py --coletar` no Agendador de Tarefas do Windows ou cron. Uma execução a cada 30 ou 60 minutos já permite detectar oscilação nas últimas 24 horas.
+Se preferir manter a coleta fora da aplicação web, ainda é possível usar `python app.py --coletar` no Agendador de Tarefas do Windows ou cron.
 
 ## Classificação
 

@@ -10,12 +10,15 @@ import pandas as pd
 from flask import Blueprint, Response, render_template, request, send_file
 
 from api_ixc import IXCClient
+from coleta_status import snapshot as coleta_snapshot
 from database import (
+    listar_clientes_por_categoria,
     listar_bons_excelentes,
     listar_offline_24h,
     listar_offline_mais_de_um_dia,
     listar_ultima_coleta,
     obter_historico_cliente,
+    resumo_ultima_coleta,
     serie_evolucao,
     estatisticas_dashboard,
     top_consumo_banda,
@@ -36,6 +39,7 @@ def dashboard():
     clientes_base = listar_offline_24h(limite=None)
     clientes_filtrados = filtrar_clientes(clientes_base)
     clientes, paginacao = paginar_registros(clientes_filtrados)
+    coleta_info = status_coleta_dashboard()
     return render_template(
         "dashboard.html",
         stats=stats,
@@ -44,9 +48,10 @@ def dashboard():
         filtros=opcoes_filtros(clientes_base),
         pagination_args=argumentos_paginacao(),
         top_criticos=top_criticos(),
-        top_consumo=top_consumo_banda(),
+        top_consumo=top_consumo_banda(limite=20),
         historico_dias=DIAS_HISTORICO_CONEXAO,
         evolucao=serie_evolucao(),
+        coleta_info=coleta_info,
     )
 
 
@@ -82,12 +87,12 @@ def sinal_optico(value) -> str:
 
 @dashboard_bp.route("/clientes-criticos")
 def clientes_criticos():
-    return renderizar_lista("Clientes Críticos", listar_ultima_coleta("AND categoria = 'CRÍTICO'"))
+    return renderizar_lista("Clientes Críticos", listar_clientes_por_categoria("CRITICO"))
 
 
 @dashboard_bp.route("/clientes-atencao")
 def clientes_atencao():
-    return renderizar_lista("Clientes em Atenção", listar_ultima_coleta("AND categoria = 'ATENÇÃO'"))
+    return renderizar_lista("Clientes em Atenção", listar_clientes_por_categoria("ATENCAO"))
 
 
 @dashboard_bp.route("/clientes-bons-excelentes")
@@ -97,12 +102,12 @@ def clientes_bons_excelentes():
 
 @dashboard_bp.route("/clientes-bons")
 def clientes_bons():
-    return renderizar_lista("Clientes Bons", listar_ultima_coleta("AND categoria = 'BOM'"))
+    return renderizar_lista("Clientes Bons", listar_clientes_por_categoria("BOM"))
 
 
 @dashboard_bp.route("/clientes-excelentes")
 def clientes_excelentes():
-    return renderizar_lista("Clientes Excelentes", listar_ultima_coleta("AND categoria = 'EXCELENTE'"))
+    return renderizar_lista("Clientes Excelentes", listar_clientes_por_categoria("EXCELENTE"))
 
 
 @dashboard_bp.route("/offiline")
@@ -407,3 +412,82 @@ def parse_data_coleta(valor: str) -> datetime | None:
         except ValueError:
             continue
     return None
+
+
+def status_coleta_dashboard() -> dict[str, str | int | None | bool]:
+    estado = coleta_snapshot()
+    resumo = resumo_ultima_coleta()
+    agora = datetime.now()
+    intervalo = int(estado.get("interval_seconds") or 0)
+    ultima_sucesso = estado.get("last_success_at")
+    proxima = estado.get("next_run_at")
+    executando = bool(estado.get("running"))
+    erro = str(estado.get("last_error") or "").strip()
+    habilitada = bool(estado.get("enabled"))
+
+    situacao = "desabilitada"
+    situacao_texto = "Automação desabilitada"
+    if executando:
+        situacao = "executando"
+        situacao_texto = "Coleta em andamento"
+    elif erro:
+        situacao = "erro"
+        situacao_texto = "Última coleta falhou"
+    elif not habilitada:
+        situacao = "desabilitada"
+        situacao_texto = "Automação desabilitada"
+    elif proxima and proxima < agora:
+        situacao = "atrasada"
+        situacao_texto = "Coleta atrasada"
+    else:
+        situacao = "saudavel"
+        situacao_texto = "Coleta automática saudável"
+
+    return {
+        "enabled": habilitada,
+        "running": executando,
+        "status": situacao,
+        "status_text": situacao_texto,
+        "interval_seconds": intervalo,
+        "interval_text": formatar_intervalo(intervalo),
+        "last_started_at": formatar_data_hora_relativa(estado.get("last_started_at")),
+        "last_finished_at": formatar_data_hora_relativa(estado.get("last_finished_at")),
+        "last_success_at": formatar_data_hora_relativa(ultima_sucesso),
+        "next_run_at": formatar_data_hora_relativa(proxima),
+        "last_error": erro,
+        "last_result_count": estado.get("last_result_count"),
+        "last_origin": estado.get("last_origin"),
+        "db_last_data_hora": formatar_data_hora_relativa(parse_data_coleta(str(resumo.get("ultima_data_hora") or ""))),
+        "db_total_clientes": resumo.get("total_clientes"),
+    }
+
+
+def formatar_data_hora_relativa(valor: datetime | None) -> str:
+    if not valor:
+        return "-"
+    agora = datetime.now()
+    diferenca = int((agora - valor).total_seconds())
+    if diferenca < 0:
+        diferenca = 0
+    if diferenca < 60:
+        relativo = "agora mesmo"
+    elif diferenca < 3600:
+        relativo = f"há {diferenca // 60} min"
+    else:
+        relativo = f"há {diferenca // 3600} h"
+    return f"{valor.strftime('%d/%m/%Y %H:%M:%S')} ({relativo})"
+
+
+def formatar_intervalo(segundos: int) -> str:
+    if segundos <= 0:
+        return "-"
+    minutos, resto = divmod(segundos, 60)
+    horas, minutos = divmod(minutos, 60)
+    partes = []
+    if horas:
+        partes.append(f"{horas}h")
+    if minutos:
+        partes.append(f"{minutos}min")
+    if resto and not horas:
+        partes.append(f"{resto}s")
+    return " ".join(partes) or f"{segundos}s"

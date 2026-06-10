@@ -153,8 +153,87 @@ a {
   box-shadow: 0 0 0 4px rgba(31, 143, 77, .14);
 }
 
+.status-dot-executando {
+  background: var(--blue);
+  box-shadow: 0 0 0 4px rgba(31, 111, 235, .14);
+}
+
+.status-dot-erro,
+.status-dot-atrasada {
+  background: var(--red);
+  box-shadow: 0 0 0 4px rgba(201, 42, 42, .14);
+}
+
+.status-dot-desabilitada {
+  background: var(--muted);
+  box-shadow: 0 0 0 4px rgba(100, 115, 134, .14);
+}
+
 .content {
   padding: 22px 28px 36px;
+}
+
+.coleta-status-card {
+  align-items: start;
+  background: linear-gradient(135deg, #fff, #f7f9fc);
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--green);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(260px, 1.1fr) minmax(320px, 1.4fr);
+  margin-bottom: 16px;
+  padding: 16px 18px;
+}
+
+.coleta-status-card.status-executando {
+  border-left-color: var(--blue);
+}
+
+.coleta-status-card.status-erro,
+.coleta-status-card.status-atrasada {
+  border-left-color: var(--red);
+}
+
+.coleta-status-card.status-desabilitada {
+  border-left-color: var(--muted);
+}
+
+.coleta-status-main strong,
+.coleta-status-main small,
+.coleta-status-label,
+.coleta-status-meta span {
+  display: block;
+}
+
+.coleta-status-label {
+  color: var(--muted);
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.coleta-status-main strong {
+  font-size: 1.15rem;
+  margin-bottom: 8px;
+}
+
+.coleta-status-main small,
+.coleta-status-meta span {
+  color: var(--muted);
+}
+
+.coleta-status-meta {
+  display: grid;
+  gap: 8px;
+}
+
+.coleta-status-meta b {
+  color: var(--text);
+  margin-right: 6px;
 }
 
 .metric-grid {
@@ -199,6 +278,7 @@ a {
 .metric.unstable { border-left-color: var(--purple); }
 
 .dashboard-grid {
+  align-items: start;
   display: grid;
   grid-template-columns: minmax(320px, .8fr) minmax(420px, 1.2fr);
   gap: 16px;
@@ -708,6 +788,7 @@ a {
   }
 
   .metric-grid,
+  .coleta-status-card,
   .dashboard-grid,
   .bandwidth-grid,
   .detail-grid {
