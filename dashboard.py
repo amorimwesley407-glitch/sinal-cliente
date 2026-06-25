@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import logging
+import os
 import re
 import unicodedata
 from datetime import datetime
@@ -30,6 +31,7 @@ dashboard_bp = Blueprint("dashboard", __name__)
 logger = logging.getLogger(__name__)
 REGISTROS_POR_PAGINA = 50
 DIAS_HISTORICO_CONEXAO = 30
+TOP_CONSUMO_BANDA_LIMITE = int(os.getenv("IXC_CONSUMO_RANK_LIMITE", "50"))
 
 
 @dashboard_bp.route("/")
@@ -48,7 +50,8 @@ def dashboard():
         filtros=opcoes_filtros(clientes_base),
         pagination_args=argumentos_paginacao(),
         top_criticos=top_criticos(),
-        top_consumo=top_consumo_banda(limite=20),
+        top_consumo=top_consumo_banda(limite=TOP_CONSUMO_BANDA_LIMITE),
+        top_consumo_limite=TOP_CONSUMO_BANDA_LIMITE,
         historico_dias=DIAS_HISTORICO_CONEXAO,
         evolucao=serie_evolucao(),
         coleta_info=coleta_info,

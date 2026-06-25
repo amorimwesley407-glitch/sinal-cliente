@@ -80,10 +80,14 @@ html:not(.dark) {
 
 html {
   scroll-behavior: smooth;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 body {
   margin: 0;
+  width: 100%;
+  overflow-x: hidden;
   min-height: 100vh;
   background:
     radial-gradient(circle at top left, var(--bg-orb-1), transparent 24%),
@@ -277,44 +281,248 @@ html:not(.dark) .brand-mark-wrap {
   overflow: hidden;
 }
 
-.dashboard-stack > * {
+.dashboard-page {
+  display: grid;
+  gap: 1.25rem;
   width: 100%;
+  max-width: 100%;
 }
 
-.dashboard-lead {
+.dashboard-panel,
+.dashboard-status-panel {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  border-radius: 1.5rem;
+  padding: 1.25rem;
+}
+
+.dashboard-status-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+  gap: 1.25rem;
   align-items: stretch;
 }
 
-.dashboard-main-copy {
+.dashboard-status-main {
   min-width: 0;
 }
 
-.dashboard-meta-grid {
-  align-items: stretch;
+.dashboard-status-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.dashboard-status-heading h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(1.25rem, 2vw, 1.6rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.dashboard-status-copy {
+  margin: 0.85rem 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.7;
+}
+
+.dashboard-status-copy span {
+  color: var(--text-soft);
+}
+
+.dashboard-status-copy b {
+  margin: 0 0.65rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.dashboard-status-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  min-width: 0;
 }
 
 .dashboard-mini-card {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  min-height: 86px;
+  min-width: 0;
+  min-height: 82px;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.95rem;
+}
+
+html:not(.dark) .dashboard-mini-card {
+  background: rgba(248, 250, 252, 0.92);
+}
+
+.dashboard-mini-card p:last-child {
+  margin: 0.85rem 0 0;
+  color: var(--text-soft);
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.dashboard-alert {
+  grid-column: 1 / -1;
+  margin-top: 0.25rem;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 1rem;
+  padding: 0.85rem 1rem;
+  font-size: 0.88rem;
 }
 
 .dashboard-metrics {
-  align-items: stretch;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1rem;
+  width: 100%;
+  max-width: 100%;
 }
 
 .metric-card {
-  height: 100%;
   display: flex;
+  min-width: 0;
+  min-height: 128px;
   flex-direction: column;
   justify-content: space-between;
-  min-height: 146px;
+  border-radius: 1.25rem;
+  padding: 1.15rem;
 }
 
 .metric-card-body {
+  display: flex;
   flex: 1;
+  align-items: end;
+  justify-content: space-between;
+  gap: 0.85rem;
+  margin-top: 1rem;
+}
+
+.metric-value {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(1.8rem, 3vw, 2.45rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.dashboard-charts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: 1.25rem;
+  width: 100%;
+  max-width: 100%;
+}
+
+.dashboard-section-header {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.bandwidth-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1.25rem;
+}
+
+.bandwidth-card {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 1.25rem;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 1rem;
+}
+
+html:not(.dark) .bandwidth-card {
+  background: rgba(248, 250, 252, 0.92);
+}
+
+.bandwidth-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.bandwidth-card-header h3 {
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.bandwidth-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.bandwidth-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.85rem;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 0.95rem;
+  background: rgba(10, 15, 28, 0.28);
+  padding: 0.85rem 1rem;
+  text-decoration: none;
+}
+
+html:not(.dark) .bandwidth-row {
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.bandwidth-row p,
+.bandwidth-row small {
+  display: block;
+  overflow: hidden;
+  margin: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bandwidth-row p {
+  color: var(--text);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.bandwidth-row small {
+  margin-top: 0.35rem;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.bandwidth-row > span {
+  color: var(--blue);
+  font-size: 0.88rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.empty-state {
+  margin: 0;
+  border: 1px dashed var(--line);
+  border-radius: 0.95rem;
+  background: rgba(10, 15, 28, 0.22);
+  padding: 1rem;
+  color: var(--muted);
+  font-size: 0.88rem;
 }
 
 .metric-sheen::after {
@@ -845,15 +1053,24 @@ html:not(.dark) .nav-link.is-active {
 
 .chart-box {
   position: relative;
-  min-height: 320px;
+  width: 100%;
+  overflow: hidden;
+  height: 320px;
+}
+
+.chart-box canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100%;
 }
 
 .chart-box.chart-tall {
-  min-height: 420px;
+  height: 420px;
 }
 
 .metric-chart-box {
-  min-height: 280px;
+  height: 280px;
 }
 
 .text-gradient {
@@ -1003,12 +1220,93 @@ html:not(.dark) .bg-slate-950\/30 {
 }
 
 @media (max-width: 1024px) {
+  header.glass-panel-strong {
+    position: relative;
+  }
+
+  .dashboard-status-panel,
+  .dashboard-charts,
+  .bandwidth-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .chart-box.chart-tall {
-    min-height: 340px;
+    height: 340px;
   }
 }
 
 @media (max-width: 768px) {
+  .glass-panel,
+  .glass-panel-strong {
+    border-radius: 1.2rem !important;
+  }
+
+  .dashboard-page {
+    gap: 1rem;
+  }
+
+  .dashboard-panel,
+  .dashboard-status-panel {
+    border-radius: 1.15rem;
+    padding: 1rem;
+  }
+
+  .dashboard-status-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-card {
+    min-height: 118px;
+  }
+
+  .metric-card-body {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .badge {
+    min-width: auto;
+    max-width: 100%;
+  }
+
+  .status-pill {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .cta-button,
+  .ghost-button {
+    width: 100%;
+    min-height: 2.75rem;
+    padding-inline: 0.95rem;
+  }
+
+  .sidebar-toggle {
+    width: auto;
+    min-width: 0;
+  }
+
+  .dashboard-mini-card,
+  .table-card,
+  .bandwidth-card {
+    min-width: 0;
+  }
+
+  .table-card > .flex {
+    flex-direction: column;
+  }
+
+  .table-card dd,
+  .table-card dt,
+  .mono {
+    overflow-wrap: anywhere;
+  }
+
   .table-card dl {
     grid-template-columns: 1fr;
   }
@@ -1016,16 +1314,66 @@ html:not(.dark) .bg-slate-950\/30 {
   .chart-box,
   .metric-chart-box,
   .chart-box.chart-tall {
-    min-height: 280px;
+    height: clamp(240px, 68vw, 320px);
+  }
+}
+
+@media (max-width: 640px) {
+  .app-sidebar {
+    width: min(92vw, 310px);
+  }
+
+  .dashboard-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-card-body {
+    flex-direction: row;
+  }
+
+  .bandwidth-card-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .bandwidth-row {
+    grid-template-columns: 1fr;
+  }
+
+  .bandwidth-row > span {
+    justify-self: start;
+  }
+
+  .panel-title {
+    font-size: 0.96rem;
+  }
+
+  .panel-copy {
+    font-size: 0.82rem;
+  }
+
+  .stat-kicker {
+    font-size: 0.66rem;
+  }
+
+  .card-hover.flex.items-center.justify-between {
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .card-hover.flex.items-center.justify-between > span:last-child {
+    flex-shrink: 0;
+    min-width: 4.5rem;
+    text-align: right;
   }
 }
 
 @media (min-width: 1024px) {
   html.sidebar-open .app-sidebar + .min-w-0 {
-    margin-left: 310px;
+    margin-left: 0;
   }
 
   .app-sidebar + .min-w-0 {
-    transition: margin-left 220ms ease;
+    width: 100%;
   }
 }

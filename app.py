@@ -193,7 +193,7 @@ def atualizar_cache_consumo_banda(client: IXCClient, clientes: list[dict]) -> No
     if not clientes:
         return
     periodo_dias = int(os.getenv("IXC_CONSUMO_PERIODO_DIAS", "30"))
-    limite = int(os.getenv("IXC_CONSUMO_RANK_LIMITE", "20"))
+    limite = int(os.getenv("IXC_CONSUMO_RANK_LIMITE", "50"))
     try:
         ranking = client.buscar_top_consumo_banda(clientes, dias=periodo_dias, limite=limite)
         salvar_consumo_banda_cache(ranking, periodo_dias)
@@ -211,7 +211,7 @@ def atualizar_consumo_por_radacct() -> dict[str, list[dict]]:
     client = IXCClient()
     clientes = [dict(row) for row in listar_ultima_coleta()]
     periodo_dias = int(os.getenv("IXC_CONSUMO_PERIODO_DIAS", "30"))
-    limite = int(os.getenv("IXC_CONSUMO_RANK_LIMITE", "20"))
+    limite = int(os.getenv("IXC_CONSUMO_RANK_LIMITE", "50"))
     ranking = client.buscar_top_consumo_banda(clientes, dias=periodo_dias, limite=limite)
     salvar_consumo_banda_cache(ranking, periodo_dias)
     logger.info(

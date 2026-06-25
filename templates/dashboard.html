@@ -3,175 +3,173 @@
 {% block page_title %}Dashboard NOC{% endblock %}
 {% block page_subtitle %}Visao executiva do parque monitorado, com foco em risco, disponibilidade e acoes priorizadas para o time de operacao.{% endblock %}
 {% block content %}
-<section class="dashboard-stack grid gap-5">
-  <div class="glass-panel fade-in-up rounded-[1.8rem] p-5 lg:p-6">
-    <div class="dashboard-lead grid gap-5 xl:grid-cols-[1.15fr,1fr]">
-      <div class="dashboard-main-copy flex min-h-[176px] flex-col justify-between">
-        <div>
-        <p class="stat-kicker">Coleta automatica</p>
-        <div class="mt-3 flex flex-wrap items-center gap-3">
-          <h2 class="m-0 text-2xl font-semibold tracking-tight text-slate-50">{{ coleta_info.status_text }}</h2>
-          <span class="badge status-{{ coleta_info.status }}">{{ coleta_info.status|replace('-', ' ')|title }}</span>
-        </div>
-        <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-400">
-          Ultima coleta no banco: <span class="text-slate-200">{{ coleta_info.db_last_data_hora }}</span>
-          <span class="mx-2 text-slate-600">|</span>
-          Clientes atuais: <span class="text-slate-200">{{ coleta_info.db_total_clientes }}</span>
-        </p>
-        </div>
+<section class="dashboard-page">
+  <section class="glass-panel dashboard-status-panel fade-in-up">
+    <div class="dashboard-status-main">
+      <p class="stat-kicker">Coleta automatica</p>
+      <div class="dashboard-status-heading">
+        <h2>{{ coleta_info.status_text }}</h2>
+        <span class="badge status-{{ coleta_info.status }}">{{ coleta_info.status|replace('-', ' ')|title }}</span>
       </div>
-      <div class="dashboard-meta-grid grid gap-3 sm:grid-cols-2">
-        <div class="dashboard-mini-card rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-          <p class="stat-kicker">Intervalo</p>
-          <p class="mt-3 text-sm font-medium text-slate-200">{{ coleta_info.interval_text }}</p>
-        </div>
-        <div class="dashboard-mini-card rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-          <p class="stat-kicker">Ultimo sucesso</p>
-          <p class="mt-3 text-sm font-medium text-slate-200">{{ coleta_info.last_success_at }}</p>
-        </div>
-        <div class="dashboard-mini-card rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-          <p class="stat-kicker">Proxima coleta</p>
-          <p class="mt-3 text-sm font-medium text-slate-200">{{ coleta_info.next_run_at }}</p>
-        </div>
-        <div class="dashboard-mini-card rounded-3xl border border-white/10 bg-white/[0.03] p-4">
-          <p class="stat-kicker">Origem</p>
-          <p class="mt-3 text-sm font-medium text-slate-200">{{ coleta_info.last_origin or "-" }}</p>
-        </div>
+      <p class="dashboard-status-copy">
+        Ultima coleta no banco: <span>{{ coleta_info.db_last_data_hora }}</span>
+        <b>|</b>
+        Clientes atuais: <span>{{ coleta_info.db_total_clientes }}</span>
+      </p>
+    </div>
+
+    <div class="dashboard-status-meta">
+      <div class="dashboard-mini-card">
+        <p class="stat-kicker">Intervalo</p>
+        <p>{{ coleta_info.interval_text }}</p>
+      </div>
+      <div class="dashboard-mini-card">
+        <p class="stat-kicker">Ultimo sucesso</p>
+        <p>{{ coleta_info.last_success_at }}</p>
+      </div>
+      <div class="dashboard-mini-card">
+        <p class="stat-kicker">Proxima coleta</p>
+        <p>{{ coleta_info.next_run_at }}</p>
+      </div>
+      <div class="dashboard-mini-card">
+        <p class="stat-kicker">Origem</p>
+        <p>{{ coleta_info.last_origin or "-" }}</p>
       </div>
     </div>
+
     {% if coleta_info.running %}
-    <div class="mt-4 rounded-3xl border border-sky-400/15 bg-sky-400/10 px-4 py-3 text-sm text-sky-100">
+    <div class="dashboard-alert border-sky-400/15 bg-sky-400/10 text-sky-100">
       Execucao atual iniciada em {{ coleta_info.last_started_at }}.
     </div>
     {% endif %}
+
     {% if coleta_info.last_error %}
-    <div class="mt-4 rounded-3xl border border-rose-400/15 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
+    <div class="dashboard-alert border-rose-400/15 bg-rose-400/10 text-rose-100">
       {{ coleta_info.last_error }}
     </div>
     {% endif %}
-  </div>
+  </section>
 
-  <div class="dashboard-metrics grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
-    <a href="{{ url_for('dashboard.clientes_criticos') }}" class="glass-panel card-hover metric-sheen metric-card fade-in-up rounded-[1.6rem] p-5 no-underline">
+  <section class="dashboard-metrics">
+    <a href="{{ url_for('dashboard.clientes_criticos') }}" class="glass-panel card-hover metric-sheen metric-card fade-in-up no-underline">
       <p class="stat-kicker text-rose-200/80">Criticos</p>
-      <div class="metric-card-body mt-4 flex items-end justify-between gap-4">
+      <div class="metric-card-body">
         <div>
-          <p class="m-0 text-4xl font-semibold tracking-tight text-slate-50">{{ stats.criticos }}</p>
+          <p class="metric-value">{{ stats.criticos }}</p>
           <p class="panel-copy">prioridade imediata</p>
         </div>
         <span class="badge status-critico">Criticos</span>
       </div>
     </a>
-    <a href="{{ url_for('dashboard.clientes_atencao') }}" class="glass-panel card-hover metric-sheen metric-card fade-in-up fade-in-delay-1 rounded-[1.6rem] p-5 no-underline">
+
+    <a href="{{ url_for('dashboard.clientes_atencao') }}" class="glass-panel card-hover metric-sheen metric-card fade-in-up fade-in-delay-1 no-underline">
       <p class="stat-kicker text-amber-100/80">Atencao</p>
-      <div class="metric-card-body mt-4 flex items-end justify-between gap-4">
+      <div class="metric-card-body">
         <div>
-          <p class="m-0 text-4xl font-semibold tracking-tight text-slate-50">{{ stats.atencao }}</p>
+          <p class="metric-value">{{ stats.atencao }}</p>
           <p class="panel-copy">acompanhar tendencia</p>
         </div>
-        <span class="badge status-atencao">Atenção</span>
+        <span class="badge status-atencao">Atencao</span>
       </div>
     </a>
-    <a href="{{ url_for('dashboard.clientes_bons') }}" class="glass-panel card-hover metric-sheen metric-card fade-in-up fade-in-delay-2 rounded-[1.6rem] p-5 no-underline">
+
+    <a href="{{ url_for('dashboard.clientes_bons') }}" class="glass-panel card-hover metric-sheen metric-card fade-in-up fade-in-delay-2 no-underline">
       <p class="stat-kicker text-emerald-100/80">Bom</p>
-      <div class="metric-card-body mt-4 flex items-end justify-between gap-4">
+      <div class="metric-card-body">
         <div>
-          <p class="m-0 text-4xl font-semibold tracking-tight text-slate-50">{{ stats.bons }}</p>
+          <p class="metric-value">{{ stats.bons }}</p>
           <p class="panel-copy">operacao estavel</p>
         </div>
         <span class="badge status-bom">Bom</span>
       </div>
     </a>
-    <a href="{{ url_for('dashboard.clientes_excelentes') }}" class="glass-panel card-hover metric-sheen metric-card fade-in-up fade-in-delay-3 rounded-[1.6rem] p-5 no-underline">
+
+    <a href="{{ url_for('dashboard.clientes_excelentes') }}" class="glass-panel card-hover metric-sheen metric-card fade-in-up fade-in-delay-3 no-underline">
       <p class="stat-kicker text-sky-100/80">Excelente</p>
-      <div class="metric-card-body mt-4 flex items-end justify-between gap-4">
+      <div class="metric-card-body">
         <div>
-          <p class="m-0 text-4xl font-semibold tracking-tight text-slate-50">{{ stats.excelentes }}</p>
+          <p class="metric-value">{{ stats.excelentes }}</p>
           <p class="panel-copy">sinal ideal</p>
         </div>
         <span class="badge status-excelente">Excelente</span>
       </div>
     </a>
-  </div>
+  </section>
 
-  <div class="grid gap-5 2xl:grid-cols-[0.95fr,1.05fr]">
-    <section class="glass-panel fade-in-up rounded-[1.8rem] p-5 lg:p-6">
-      <div class="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h2 class="panel-title">Distribuicao por categoria</h2>
-          <p class="panel-copy">Snapshot imediato da qualidade da base coletada.</p>
-        </div>
+  <section class="dashboard-charts">
+    <article class="glass-panel dashboard-panel fade-in-up">
+      <div>
+        <h2 class="panel-title">Distribuicao por categoria</h2>
+        <p class="panel-copy">Snapshot imediato da qualidade da base coletada.</p>
       </div>
       <div class="chart-box metric-chart-box mt-5">
         <canvas id="categoriaChart"></canvas>
       </div>
-    </section>
+    </article>
 
-    <section class="glass-panel fade-in-up rounded-[1.8rem] p-5 lg:p-6">
-      <div class="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
-        <div>
-          <h2 class="panel-title">Top 20 criticos</h2>
-          <p class="panel-copy">Clique em um cliente para abrir o detalhe rapidamente.</p>
-        </div>
+    <article class="glass-panel dashboard-panel fade-in-up">
+      <div>
+        <h2 class="panel-title">Top 20 criticos</h2>
+        <p class="panel-copy">Clique em um cliente para abrir o detalhe rapidamente.</p>
       </div>
       <div class="chart-box chart-tall mt-5">
         <canvas id="criticosChart"></canvas>
       </div>
-    </section>
-  </div>
+    </article>
+  </section>
 
-  <section class="glass-panel fade-in-up rounded-[1.8rem] p-5 lg:p-6">
-    <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-      <div>
-        <h2 class="panel-title">Maior consumo de banda</h2>
-        <p class="panel-copy">Consumo acumulado nos ultimos {{ historico_dias }} dias.</p>
-      </div>
+  <section class="glass-panel dashboard-panel fade-in-up">
+    <div>
+      <h2 class="panel-title">Maior consumo de banda</h2>
+      <p class="panel-copy">Consumo acumulado nos ultimos {{ historico_dias }} dias.</p>
     </div>
-    <div class="mt-5 grid gap-4 xl:grid-cols-2">
-      <div class="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
-        <div class="mb-4 flex items-center justify-between">
-          <h3 class="m-0 text-sm font-semibold uppercase tracking-[0.16em] text-slate-300">Download</h3>
-          <span class="badge status-excelente">Ranking</span>
+
+    <div class="bandwidth-grid">
+      <article class="bandwidth-card">
+        <div class="bandwidth-card-header">
+          <h3>Download</h3>
+          <span class="badge status-excelente">Top {{ top_consumo_limite }}</span>
         </div>
-        <div class="grid gap-2">
+        <div class="bandwidth-list">
           {% for cliente in top_consumo["download"] %}
-          <a class="card-hover flex items-center justify-between gap-4 rounded-[1.1rem] border border-transparent bg-slate-950/30 px-4 py-3 no-underline" href="{{ url_for('dashboard.detalhe_cliente', cliente_id=cliente['cliente_id'], login=cliente['login']) }}">
-            <div class="min-w-0">
-              <p class="m-0 truncate text-sm font-semibold text-slate-100">{{ loop.index }}. {{ cliente["nome"] }}</p>
-              <p class="m-0 mt-1 truncate text-xs text-slate-400">{{ cliente["login"] or cliente["contato"] or "sem login" }}</p>
+          <a class="bandwidth-row card-hover" href="{{ url_for('dashboard.detalhe_cliente', cliente_id=cliente['cliente_id'], login=cliente['login']) }}">
+            <div>
+              <p>{{ loop.index }}. {{ cliente["nome"] }}</p>
+              <small>{{ cliente["login"] or cliente["contato"] or "sem login" }}</small>
             </div>
-            <span class="text-sm font-semibold text-cyan-300">{{ cliente["download"] or "-" }}</span>
+            <span>{{ cliente["download"] or "-" }}</span>
           </a>
           {% else %}
-          <p class="m-0 rounded-[1.1rem] border border-dashed border-white/10 bg-slate-950/20 px-4 py-5 text-sm text-slate-400">Sem dados de download no periodo.</p>
+          <p class="empty-state">Sem dados de download no periodo.</p>
           {% endfor %}
         </div>
-      </div>
-      <div class="rounded-[1.5rem] border border-white/10 bg-white/[0.03] p-4">
-        <div class="mb-4 flex items-center justify-between">
-          <h3 class="m-0 text-sm font-semibold uppercase tracking-[0.16em] text-slate-300">Upload</h3>
-          <span class="badge status-excelente">Ranking</span>
+      </article>
+
+      <article class="bandwidth-card">
+        <div class="bandwidth-card-header">
+          <h3>Upload</h3>
+          <span class="badge status-excelente">Top {{ top_consumo_limite }}</span>
         </div>
-        <div class="grid gap-2">
+        <div class="bandwidth-list">
           {% for cliente in top_consumo["upload"] %}
-          <a class="card-hover flex items-center justify-between gap-4 rounded-[1.1rem] border border-transparent bg-slate-950/30 px-4 py-3 no-underline" href="{{ url_for('dashboard.detalhe_cliente', cliente_id=cliente['cliente_id'], login=cliente['login']) }}">
-            <div class="min-w-0">
-              <p class="m-0 truncate text-sm font-semibold text-slate-100">{{ loop.index }}. {{ cliente["nome"] }}</p>
-              <p class="m-0 mt-1 truncate text-xs text-slate-400">{{ cliente["login"] or cliente["contato"] or "sem login" }}</p>
+          <a class="bandwidth-row card-hover" href="{{ url_for('dashboard.detalhe_cliente', cliente_id=cliente['cliente_id'], login=cliente['login']) }}">
+            <div>
+              <p>{{ loop.index }}. {{ cliente["nome"] }}</p>
+              <small>{{ cliente["login"] or cliente["contato"] or "sem login" }}</small>
             </div>
-            <span class="text-sm font-semibold text-cyan-300">{{ cliente["upload"] or "-" }}</span>
+            <span>{{ cliente["upload"] or "-" }}</span>
           </a>
           {% else %}
-          <p class="m-0 rounded-[1.1rem] border border-dashed border-white/10 bg-slate-950/20 px-4 py-5 text-sm text-slate-400">Sem dados de upload no periodo.</p>
+          <p class="empty-state">Sem dados de upload no periodo.</p>
           {% endfor %}
         </div>
-      </div>
+      </article>
     </div>
   </section>
 
-  <section class="glass-panel fade-in-up rounded-[1.8rem] p-5 lg:p-6">
+  <section class="glass-panel dashboard-panel fade-in-up">
     {% set mostrar_ultima_queda = true %}
-    <div class="flex flex-col gap-3">
+    <div class="dashboard-section-header">
       <div>
         <h2 class="panel-title">Fila operacional</h2>
         <p class="panel-copy">{{ paginacao.inicio }}-{{ paginacao.fim }} de {{ paginacao.total }} clientes offline nas ultimas 24 horas.</p>
