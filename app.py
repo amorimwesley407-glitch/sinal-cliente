@@ -245,7 +245,7 @@ if __name__ == "__main__":
     parser.add_argument("--coletar", action="store_true", help="Executa uma coleta na API IXC e salva no SQLite")
     parser.add_argument("--atualizar-consumo", action="store_true", help="Atualiza apenas o cache de consumo acumulado")
     parser.add_argument("--host", default="0.0.0.0", help="Host do servidor Flask")
-    parser.add_argument("--port", default=5000, type=int, help="Porta do servidor Flask")
+    parser.add_argument("--port", default=5333, type=int, help="Porta do servidor Flask")
     args = parser.parse_args()
 
     if args.coletar:
